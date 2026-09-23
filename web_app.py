@@ -116,6 +116,24 @@ def auth_login():
         })
     return jsonify({"error": "Tên đăng nhập hoặc mật khẩu không chính xác!"}), 401
 
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def auth_reset_password():
+    data = request.json or {}
+    username = data.get("username", "")
+    new_password = data.get("new_password", "")
+    result = db.reset_user_password(username=username, new_password=new_password)
+    if result["success"]:
+        user = result["user"]
+        session.permanent = True
+        session["user_id"] = user["id"]
+        return jsonify({
+            "success": True,
+            "message": "Đặt lại mật khẩu và đăng nhập thành công!",
+            "user": user
+        })
+    return jsonify({"error": result.get("error", "Không thể đặt lại mật khẩu")}), 400
+
 @app.route("/api/auth/logout", methods=["POST"])
 def auth_logout():
     session.clear()

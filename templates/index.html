@@ -347,8 +347,29 @@
                     <label for="login-password" class="form-label required">Mật khẩu</label>
                     <input type="password" id="login-password" class="form-control" placeholder="Nhập mật khẩu..." required>
                 </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: -6px;">
+                    <a href="#" id="link-forgot-pwd" style="color: var(--accent-cyan); font-size: 12px; text-decoration: underline; cursor: pointer;">Quên mật khẩu / Đặt lại?</a>
+                </div>
                 <button type="submit" class="btn btn-primary btn-block" id="btn-submit-login">
                     <span>Đăng Nhập Vào Nhật Ký</span>
+                </button>
+            </form>
+
+            <!-- Form Đặt Lại Mật Khẩu -->
+            <form id="form-reset-pwd" class="auth-form" autocomplete="off" style="display: none;">
+                <div class="form-group">
+                    <label for="reset-username" class="form-label required">Tên đăng nhập cần đổi</label>
+                    <input type="text" id="reset-username" class="form-control" placeholder="Nhập tên tài khoản (ví dụ: phattruong)..." required>
+                </div>
+                <div class="form-group">
+                    <label for="reset-new-password" class="form-label required">Mật khẩu mới</label>
+                    <input type="password" id="reset-new-password" class="form-control" placeholder="Nhập mật khẩu mới (tối thiểu 4 ký tự)..." required>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: -6px;">
+                    <a href="#" id="link-back-login" style="color: var(--text-muted); font-size: 12px; text-decoration: underline; cursor: pointer;">← Quay lại Đăng nhập</a>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btn-submit-reset-pwd">
+                    <span>Đặt Lại Mật Khẩu & Đăng Nhập</span>
                 </button>
             </form>
 

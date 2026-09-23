@@ -31,6 +31,12 @@ document.addEventListener("DOMContentLoaded", () => {
         regDisplayName: document.getElementById("reg-display-name"),
         btnSubmitLogin: document.getElementById("btn-submit-login"),
         btnSubmitRegister: document.getElementById("btn-submit-register"),
+        linkForgotPwd: document.getElementById("link-forgot-pwd"),
+        linkBackLogin: document.getElementById("link-back-login"),
+        formResetPwd: document.getElementById("form-reset-pwd"),
+        resetUsername: document.getElementById("reset-username"),
+        resetNewPassword: document.getElementById("reset-new-password"),
+        btnSubmitResetPwd: document.getElementById("btn-submit-reset-pwd"),
 
         // User Profile Chip
         userProfileChip: document.getElementById("user-profile-chip"),
@@ -1163,6 +1169,68 @@ document.addEventListener("DOMContentLoaded", () => {
         // Auth Form Submits
         elements.formLogin.addEventListener("submit", handleLoginSubmit);
         elements.formRegister.addEventListener("submit", handleRegisterSubmit);
+
+        // Forgot password handlers
+        if (elements.linkForgotPwd) {
+            elements.linkForgotPwd.addEventListener("click", (e) => {
+                e.preventDefault();
+                elements.formLogin.style.display = "none";
+                elements.formRegister.style.display = "none";
+                elements.formResetPwd.style.display = "flex";
+                elements.resetUsername.value = elements.loginUsername.value.trim();
+                hideAuthAlert();
+            });
+        }
+
+        if (elements.linkBackLogin) {
+            elements.linkBackLogin.addEventListener("click", (e) => {
+                e.preventDefault();
+                elements.formResetPwd.style.display = "none";
+                elements.formLogin.style.display = "flex";
+                hideAuthAlert();
+            });
+        }
+
+        if (elements.formResetPwd) {
+            elements.formResetPwd.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                hideAuthAlert();
+                const username = elements.resetUsername.value.trim();
+                const newPassword = elements.resetNewPassword.value;
+
+                if (!username || newPassword.length < 4) {
+                    showAuthAlert("Vui lòng nhập tên đăng nhập và mật khẩu mới tối thiểu 4 ký tự!");
+                    return;
+                }
+
+                try {
+                    elements.btnSubmitResetPwd.disabled = true;
+                    elements.btnSubmitResetPwd.textContent = "Đang đặt lại...";
+
+                    const res = await fetch("/api/auth/reset-password", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username, new_password: newPassword })
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        showAuthAlert(data.error || "Không thể đặt lại mật khẩu!");
+                        return;
+                    }
+
+                    showToast("Đặt lại mật khẩu thành công! Đã đăng nhập.", "success");
+                    onUserLoggedIn(data.user);
+                    elements.formResetPwd.reset();
+
+                } catch (err) {
+                    showAuthAlert("Lỗi kết nối máy chủ!");
+                } finally {
+                    elements.btnSubmitResetPwd.disabled = false;
+                    elements.btnSubmitResetPwd.textContent = "Đặt Lại Mật Khẩu & Đăng Nhập";
+                }
+            });
+        }
         elements.btnLogout.addEventListener("click", handleLogout);
 
         // App Navigation Tabs

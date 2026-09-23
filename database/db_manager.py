@@ -160,6 +160,23 @@ class DatabaseManager:
             row = cursor.fetchone()
             return dict(row) if row else None
 
+
+    def reset_user_password(self, username: str, new_password: str) -> Dict[str, Any]:
+        """Đặt lại mật khẩu cho tài khoản"""
+        clean_user = username.strip().lower()
+        if not clean_user or not new_password or len(new_password) < 4:
+            return {"success": False, "error": "Mật khẩu mới phải có ít nhất 4 ký tự"}
+        pwd_hash = generate_password_hash(new_password)
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (pwd_hash, clean_user))
+            conn.commit()
+            if cursor.rowcount > 0:
+                cursor.execute("SELECT id, username, display_name FROM users WHERE username = ?", (clean_user,))
+                row = cursor.fetchone()
+                return {"success": True, "message": "Đặt lại mật khẩu thành công!", "user": dict(row)}
+            return {"success": False, "error": "Không tìm thấy tên đăng nhập này"}
+
     # =========================================================================
     # QUẢN LÝ LỆNH GIAO DỊCH (TRADES) THEO TỪNG USER
     # =========================================================================
