@@ -25,10 +25,30 @@ from database.db_manager import DatabaseManager
 from utils.calculations import calculate_trade_metrics, calculate_portfolio_statistics
 from utils.export_import import export_trades_to_csv
 
+from itsdangerous import URLSafeTimedSerializer
+
 app = Flask(__name__, static_folder="static", template_folder="templates")
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "crypto-journal-secret-key-2026-auth")
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # Tối đa 16MB ảnh
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=90)  # Ghi nhớ đăng nhập 90 ngày
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"                  # Giữ cookie bền bỉ trên cả mobile & desktop
+app.config["SESSION_COOKIE_HTTPONLY"] = True                   # Bảo mật chống can thiệp script
+app.config["SESSION_REFRESH_EACH_REQUEST"] = True              # Tự động làm mới hạn 90 ngày mỗi lần truy cập
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024            # Tối đa 16MB ảnh
+
+# Quản lý Token Xác thực bền bỉ (Hoạt động tốt cả khi trình duyệt Safari/mobile chặn cookie)
+token_serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
+def generate_auth_token(user_id: int) -> str:
+    """Tạo token ký số an toàn có hạn 90 ngày cho thiết bị"""
+    return token_serializer.dumps(user_id, salt="crypto-journal-device-auth")
+
+def verify_auth_token(token: str) -> int | None:
+    """Xác thực token 90 ngày từ header request"""
+    try:
+        user_id = token_serializer.loads(token, salt="crypto-journal-device-auth", max_age=60 * 60 * 24 * 90)
+        return user_id
+    except Exception:
+        return None
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(CHARTS_DIR, exist_ok=True)
@@ -42,7 +62,28 @@ db = DatabaseManager()
 # ==========================================
 
 def get_current_user_id() -> int | None:
-    return session.get("user_id")
+    # 1. Kiểm tra session cookie thông thường
+    uid = session.get("user_id")
+    if uid:
+        return uid
+
+    # 2. Dự phòng: Kiểm tra token từ thiết bị (Authorization hoặc X-Auth-Token header)
+    auth_header = request.headers.get("Authorization", "")
+    token = None
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    elif request.headers.get("X-Auth-Token"):
+        token = request.headers.get("X-Auth-Token").strip()
+
+    if token:
+        uid = verify_auth_token(token)
+        if uid:
+            # Đồng bộ lại vào session để tăng tốc các lượt gọi sau
+            session.permanent = True
+            session["user_id"] = uid
+            return uid
+
+    return None
 
 def login_required(f):
     @wraps(f)
@@ -90,10 +131,12 @@ def auth_register():
         user = result["user"]
         session.permanent = True
         session["user_id"] = user["id"]
+        token = generate_auth_token(user["id"])
         return jsonify({
             "success": True,
             "message": "Đăng ký tài khoản thành công!",
-            "user": user
+            "user": user,
+            "token": token
         }), 201
     return jsonify({"error": result.get("error", "Đăng ký thất bại")}), 400
 
@@ -107,10 +150,12 @@ def auth_login():
     if user:
         session.permanent = True
         session["user_id"] = user["id"]
+        token = generate_auth_token(user["id"])
         return jsonify({
             "success": True,
             "message": "Đăng nhập thành công!",
-            "user": user
+            "user": user,
+            "token": token
         })
     return jsonify({"error": "Tên đăng nhập hoặc mật khẩu không chính xác!"}), 401
 
@@ -125,10 +170,12 @@ def auth_reset_password():
         user = result["user"]
         session.permanent = True
         session["user_id"] = user["id"]
+        token = generate_auth_token(user["id"])
         return jsonify({
             "success": True,
             "message": "Đặt lại mật khẩu và đăng nhập thành công!",
-            "user": user
+            "user": user,
+            "token": token
         })
     return jsonify({"error": result.get("error", "Không thể đặt lại mật khẩu")}), 400
 
@@ -162,13 +209,15 @@ def auth_me():
     if not user:
         session.clear()
         return jsonify({"logged_in": False, "user": None})
+    token = generate_auth_token(user["id"])
     return jsonify({
         "logged_in": True,
         "user": {
             "id": user["id"],
             "username": user["username"],
             "display_name": user["display_name"]
-        }
+        },
+        "token": token
     })
 
 

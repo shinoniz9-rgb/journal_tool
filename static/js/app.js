@@ -159,20 +159,61 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
+    // PERSISTENT AUTHENTICATION (TOKEN & LOCALSTORAGE)
+    // ==========================================
+    function getAuthHeaders(existingHeaders = {}) {
+        const headers = { ...existingHeaders };
+        const token = localStorage.getItem("cj_auth_token");
+        if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+            headers["X-Auth-Token"] = token;
+        }
+        return headers;
+    }
+
+    async function authFetch(url, options = {}) {
+        options.headers = getAuthHeaders(options.headers);
+        return fetch(url, options);
+    }
+
+    // ==========================================
     // AUTHENTICATION LOGIC (LOGIN / REGISTER / LOGOUT)
     // ==========================================
     async function checkAuthStatus() {
         try {
-            const res = await fetch("/api/auth/me");
+            // Khôi phục tức thì hiển thị trên thiết bị để không bị giật lag
+            const cachedUserStr = localStorage.getItem("cj_user");
+            if (cachedUserStr) {
+                try {
+                    const cachedUser = JSON.parse(cachedUserStr);
+                    if (cachedUser && (cachedUser.display_name || cachedUser.username)) {
+                        const firstLetter = (cachedUser.display_name || cachedUser.username || "T").charAt(0).toUpperCase();
+                        elements.userAvatarText.textContent = firstLetter;
+                        elements.userDisplayName.textContent = cachedUser.display_name || cachedUser.username;
+                        elements.userProfileChip.style.display = "flex";
+                    }
+                } catch (e) {}
+            }
+
+            const res = await authFetch("/api/auth/me");
             const data = await res.json();
             if (data.logged_in && data.user) {
+                if (data.token) {
+                    localStorage.setItem("cj_auth_token", data.token);
+                }
+                localStorage.setItem("cj_user", JSON.stringify(data.user));
                 onUserLoggedIn(data.user);
             } else {
+                localStorage.removeItem("cj_auth_token");
+                localStorage.removeItem("cj_user");
                 showAuthModal();
             }
         } catch (err) {
             console.error("Lỗi kiểm tra auth:", err);
-            showAuthModal();
+            const token = localStorage.getItem("cj_auth_token");
+            if (!token) {
+                showAuthModal();
+            }
         }
     }
 
@@ -226,7 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.btnSubmitLogin.disabled = true;
             elements.btnSubmitLogin.textContent = "Đang xác thực...";
 
-            const res = await fetch("/api/auth/login", {
+            const res = await authFetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password })
@@ -236,6 +277,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) {
                 showAuthAlert(data.error || "Đăng nhập thất bại!");
                 return;
+            }
+
+            if (data.token) {
+                localStorage.setItem("cj_auth_token", data.token);
+            }
+            if (data.user) {
+                localStorage.setItem("cj_user", JSON.stringify(data.user));
             }
 
             showToast(`Chào mừng bạn trở lại, ${data.user.display_name || data.user.username}!`, "success");
@@ -270,7 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.btnSubmitRegister.disabled = true;
             elements.btnSubmitRegister.textContent = "Đang tạo tài khoản...";
 
-            const res = await fetch("/api/auth/register", {
+            const res = await authFetch("/api/auth/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password, display_name: displayName })
@@ -280,6 +328,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!res.ok) {
                 showAuthAlert(data.error || "Đăng ký thất bại!");
                 return;
+            }
+
+            if (data.token) {
+                localStorage.setItem("cj_auth_token", data.token);
+            }
+            if (data.user) {
+                localStorage.setItem("cj_user", JSON.stringify(data.user));
             }
 
             showToast(`Đăng ký tài khoản thành công! Chào mừng ${data.user.display_name}!`, "success");
@@ -297,14 +352,16 @@ document.addEventListener("DOMContentLoaded", () => {
     async function handleLogout() {
         if (!confirm("Bạn có chắc chắn muốn đăng xuất không?")) return;
         try {
-            await fetch("/api/auth/logout", { method: "POST" });
+            await authFetch("/api/auth/logout", { method: "POST" });
+        } catch (err) {
+            console.error("Lỗi đăng xuất:", err);
+        } finally {
+            localStorage.removeItem("cj_auth_token");
+            localStorage.removeItem("cj_user");
             state.user = null;
             state.trades = [];
             state.stats = null;
             showToast("Đã đăng xuất thành công!", "info");
-            showAuthModal();
-        } catch (err) {
-            console.error("Lỗi đăng xuất:", err);
             showAuthModal();
         }
     }
@@ -320,7 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadConfig() {
         try {
-            const res = await fetch("/api/config");
+            const res = await authFetch("/api/config");
             const data = await res.json();
             state.config = data;
 
@@ -407,7 +464,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
     async function loadStats() {
         try {
-            const res = await fetch("/api/stats");
+            const res = await authFetch("/api/stats");
             if (res.status === 401) {
                 showAuthModal();
                 return;
@@ -652,7 +709,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (elements.filterResult && elements.filterResult.value !== "Tất cả") params.append("result", elements.filterResult.value);
             if (elements.filterStrategy && elements.filterStrategy.value !== "Tất cả") params.append("strategy", elements.filterStrategy.value);
 
-            const res = await fetch(`/api/trades?${params.toString()}`);
+            const res = await authFetch(`/api/trades?${params.toString()}`);
             if (res.status === 401) {
                 showAuthModal();
                 return;
@@ -1004,7 +1061,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function openEditModal(tradeId) {
         try {
-            const res = await fetch(`/api/trades/${tradeId}`);
+            const res = await authFetch(`/api/trades/${tradeId}`);
             if (res.status === 401) {
                 showAuthModal();
                 return;
@@ -1107,7 +1164,7 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.btnSaveTrade.disabled = true;
             elements.btnSaveText.textContent = "Đang lưu...";
 
-            const res = await fetch(url, {
+            const res = await authFetch(url, {
                 method: method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -1132,7 +1189,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!confirm(`Bạn có chắc chắn muốn xóa lệnh #${tradeId} này không?`)) return;
 
         try {
-            const res = await fetch(`/api/trades/${tradeId}`, { method: "DELETE" });
+            const res = await authFetch(`/api/trades/${tradeId}`, { method: "DELETE" });
             const result = await res.json();
             if (!res.ok) throw new Error(result.error || "Không thể xóa");
 
@@ -1259,7 +1316,7 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("file", file);
 
         try {
-            const res = await fetch("/api/upload-chart", {
+            const res = await authFetch("/api/upload-chart", {
                 method: "POST",
                 body: formData
             });
@@ -1357,7 +1414,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     elements.btnSubmitResetPwd.disabled = true;
                     elements.btnSubmitResetPwd.textContent = "Đang đặt lại...";
 
-                    const res = await fetch("/api/auth/reset-password", {
+                    const res = await authFetch("/api/auth/reset-password", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ username, new_password: newPassword })
@@ -1367,6 +1424,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (!res.ok) {
                         showAuthAlert(data.error || "Không thể đặt lại mật khẩu!");
                         return;
+                    }
+
+                    if (data.token) {
+                        localStorage.setItem("cj_auth_token", data.token);
+                    }
+                    if (data.user) {
+                        localStorage.setItem("cj_user", JSON.stringify(data.user));
                     }
 
                     showToast("Đặt lại mật khẩu thành công! Đã đăng nhập.", "success");
