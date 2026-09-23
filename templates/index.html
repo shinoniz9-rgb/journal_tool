@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Trading Journal - Nhật Ký Giao Dịch Pro</title>
+    <meta name="description" content="Nhật ký giao dịch Crypto chuyên nghiệp, quản lý lệnh, kiểm soát tâm lý, theo dõi tăng trưởng vốn và dán ảnh biểu đồ TradingView trực tiếp.">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- BACKGROUND GLOW EFFECTS -->
+    <div class="glow-orb glow-top-left"></div>
+    <div class="glow-orb glow-bottom-right"></div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="app-layout">
+        <!-- TOP NAVIGATION BAR -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="brand-logo">
+                    <span class="brand-icon">⚡</span>
+                    <div class="brand-info">
+                        <h1 class="brand-title">CRYPTO JOURNAL</h1>
+                        <span class="brand-badge">PRO EDITION</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABS NAVIGATION -->
+            <nav class="header-tabs" role="tablist">
+                <button class="nav-tab active" id="tab-dashboard-btn" data-tab="dashboard">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                    <span>Dashboard & KPIs</span>
+                </button>
+                <button class="nav-tab" id="tab-journal-btn" data-tab="journal">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <span>Nhật Ký Lệnh</span>
+                    <span class="tab-counter" id="total-trades-counter">0</span>
+                </button>
+                <button class="nav-tab" id="tab-calendar-btn" data-tab="calendar">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <span>Lịch PnL</span>
+                </button>
+            </nav>
+
+            <!-- ACTION BUTTONS -->
+            <div class="header-actions">
+                <button class="btn btn-primary" id="btn-open-add-trade">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Thêm Lệnh Mới</span>
+                    <kbd class="shortcut-key">Ctrl+N</kbd>
+                </button>
+                <button class="btn btn-secondary" id="btn-export-csv" title="Xuất dữ liệu ra file CSV">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span class="hide-mobile">Xuất CSV</span>
+                </button>
+                <button class="btn btn-icon" id="btn-refresh" title="Làm mới dữ liệu">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN VIEWPORTS -->
+        <main class="app-main">
+            <!-- ========================================== -->
+            <!-- TAB 1: DASHBOARD & ANALYTICS               -->
+            <!-- ========================================== -->
+            <section class="tab-content active" id="view-dashboard">
+                <!-- 6 KPI CARDS -->
+                <div class="kpi-grid">
+                    <!-- Net PnL -->
+                    <div class="kpi-card card-glow" id="kpi-net-pnl-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">Tổng Net PnL</span>
+                            <span class="kpi-icon" id="kpi-pnl-icon">💰</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-net-pnl">$0.00</div>
+                        <div class="kpi-subtext" id="kpi-pnl-sub">0 lệnh đã đóng</div>
+                    </div>
+
+                    <!-- Win Rate -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">Tỷ Lệ Thắng (Win Rate)</span>
+                            <span class="kpi-icon">🎯</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-win-rate">0.0%</div>
+                        <div class="kpi-subtext" id="kpi-win-loss-breakdown">
+                            <span class="text-win" id="kpi-wins">0W</span> / 
+                            <span class="text-loss" id="kpi-losses">0L</span> / 
+                            <span class="text-be" id="kpi-be">0BE</span>
+                        </div>
+                    </div>
+
+                    <!-- Profit Factor -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">Profit Factor (PF)</span>
+                            <span class="kpi-icon">📈</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-profit-factor">0.00</div>
+                        <div class="kpi-subtext">
+                            Tổng lãi: <span class="text-win" id="kpi-total-profit">$0</span> | Lỗ: <span class="text-loss" id="kpi-total-loss">$0</span>
+                        </div>
+                    </div>
+
+                    <!-- Avg Win / Loss -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">Lãi TB / Lỗ TB</span>
+                            <span class="kpi-icon">⚖️</span>
+                        </div>
+                        <div class="kpi-value">
+                            <span class="text-win" id="kpi-avg-win">+$0</span> / 
+                            <span class="text-loss" id="kpi-avg-loss">-$0</span>
+                        </div>
+                        <div class="kpi-subtext" id="kpi-win-loss-ratio">Tỷ lệ Lãi:Lỗ: 0.0x</div>
+                    </div>
+
+                    <!-- Avg Realized R:R -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">R:R Thực Tế TB</span>
+                            <span class="kpi-icon">🏹</span>
+                        </div>
+                        <div class="kpi-value text-accent" id="kpi-avg-rr">1 : 0.00</div>
+                        <div class="kpi-subtext">Tỷ lệ Risk:Reward thực tế</div>
+                    </div>
+
+                    <!-- Consecutive Streak -->
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">Chuỗi Thắng / Thua Max</span>
+                            <span class="kpi-icon">🔥</span>
+                        </div>
+                        <div class="kpi-value">
+                            <span class="text-win" id="kpi-max-wins">0W</span> / 
+                            <span class="text-loss" id="kpi-max-losses">0L</span>
+                        </div>
+                        <div class="kpi-subtext">Kỷ lục liên tiếp</div>
+                    </div>
+                </div>
+
+                <!-- CHARTS ROW -->
+                <div class="dashboard-charts-grid">
+                    <!-- Main Chart: Equity Curve -->
+                    <div class="chart-card card-main-chart">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <h2 class="card-title">Đường Cong Tăng Trưởng Vốn (Equity Curve)</h2>
+                                <span class="card-subtitle">Lợi nhuận ròng tích lũy theo thời gian</span>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="equityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Side Panel: Strategy & Emotion Stats -->
+                    <div class="chart-card card-side-stats">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <h2 class="card-title">Hiệu Suất Theo Chiến Lược</h2>
+                                <span class="card-subtitle">Tỷ lệ thắng theo Setup</span>
+                            </div>
+                        </div>
+                        <div class="breakdown-list" id="strategy-breakdown-list">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PSYCHOLOGY & COINS ROW -->
+                <div class="dashboard-bottom-grid">
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <h2 class="card-title">Tác Động Của Tâm Lý Giao Dịch</h2>
+                                <span class="card-subtitle">Kỷ luật vs Cảm xúc tiêu cực</span>
+                            </div>
+                        </div>
+                        <div class="breakdown-list" id="emotion-breakdown-list">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <h2 class="card-title">Cặp Tiền Giao Dịch Nhiều Nhất</h2>
+                                <span class="card-subtitle">Hiệu quả theo từng tài sản</span>
+                            </div>
+                        </div>
+                        <div class="breakdown-list" id="symbol-breakdown-list">
+                            <!-- Injected via JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- TAB 2: TRADES JOURNAL                      -->
+            <!-- ========================================== -->
+            <section class="tab-content" id="view-journal">
+                <!-- FILTER TOOLBAR -->
+                <div class="filter-bar">
+                    <div class="filter-inputs">
+                        <div class="search-input-group">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="filter-search" placeholder="Tìm theo Coin, Ghi chú, Setup..." autocomplete="off">
+                        </div>
+
+                        <select id="filter-symbol" class="filter-select">
+                            <option value="Tất cả">Tất cả Cặp tiền</option>
+                        </select>
+
+                        <select id="filter-status" class="filter-select">
+                            <option value="Tất cả">Tất cả Trạng thái</option>
+                            <option value="Open">Đang mở (Open)</option>
+                            <option value="Closed">Đã đóng (Closed)</option>
+                            <option value="Cancelled">Đã hủy</option>
+                        </select>
+
+                        <select id="filter-result" class="filter-select">
+                            <option value="Tất cả">Tất cả Kết quả</option>
+                            <option value="Thắng (Win)">Thắng (Win)</option>
+                            <option value="Thua (Loss)">Thua (Loss)</option>
+                            <option value="Hòa (Breakeven)">Hòa (BE)</option>
+                        </select>
+
+                        <select id="filter-strategy" class="filter-select">
+                            <option value="Tất cả">Tất cả Chiến lược</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-actions">
+                        <span class="filter-stats-text" id="filter-stats-label">Đang hiển thị 0 lệnh</span>
+                        <button class="btn btn-ghost" id="btn-reset-filters" title="Xóa bộ lọc">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <span>Xóa lọc</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TRADES DATA TABLE CONTAINER -->
+                <div class="table-container">
+                    <table class="trades-table" id="trades-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Cặp Tiền</th>
+                                <th>Vị Thế</th>
+                                <th>Thị Trường</th>
+                                <th>Trạng Thái</th>
+                                <th>Giá Vào</th>
+                                <th>Giá Thoát</th>
+                                <th>Ký Quỹ</th>
+                                <th>Net PnL ($)</th>
+                                <th>ROI (%)</th>
+                                <th>R:R</th>
+                                <th>Chiến Lược</th>
+                                <th>Tâm Lý</th>
+                                <th>Biểu Đồ</th>
+                                <th>Thời Gian</th>
+                                <th>Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-tbody">
+                            <!-- Injected dynamically via app.js -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- EMPTY STATE -->
+                <div class="empty-state" id="trades-empty-state" style="display: none;">
+                    <div class="empty-icon">📭</div>
+                    <h3>Chưa có lệnh nào phù hợp</h3>
+                    <p>Hãy thêm lệnh mới hoặc thay đổi bộ lọc để xem nhật ký của bạn.</p>
+                    <button class="btn btn-primary" id="btn-empty-add-trade">
+                        <span>+ Thêm Lệnh Ngay</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ========================================== -->
+            <!-- TAB 3: TRADING CALENDAR                    -->
+            <!-- ========================================== -->
+            <section class="tab-content" id="view-calendar">
+                <div class="calendar-card">
+                    <!-- Calendar Header -->
+                    <div class="calendar-header">
+                        <div class="calendar-month-selector">
+                            <button class="btn btn-icon" id="btn-cal-prev">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <h2 class="calendar-month-title" id="cal-month-title">Tháng 09 / 2026</h2>
+                            <button class="btn btn-icon" id="btn-cal-next">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                            <button class="btn btn-ghost" id="btn-cal-today">Hôm nay</button>
+                        </div>
+
+                        <!-- Month Summary Chips -->
+                        <div class="calendar-summary-chips">
+                            <div class="cal-chip">
+                                <span class="chip-label">PnL Tháng:</span>
+                                <span class="chip-value text-win" id="cal-month-pnl">+$0.00</span>
+                            </div>
+                            <div class="cal-chip">
+                                <span class="chip-label">Win Rate:</span>
+                                <span class="chip-value text-accent" id="cal-month-wr">0%</span>
+                            </div>
+                            <div class="cal-chip">
+                                <span class="chip-label">Số Lệnh:</span>
+                                <span class="chip-value" id="cal-month-trades-count">0 lệnh</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calendar Grid -->
+                    <div class="calendar-weekdays">
+                        <div>Thứ 2</div>
+                        <div>Thứ 3</div>
+                        <div>Thứ 4</div>
+                        <div>Thứ 5</div>
+                        <div>Thứ 6</div>
+                        <div class="weekend">Thứ 7</div>
+                        <div class="weekend">Chủ Nhật</div>
+                    </div>
+                    <div class="calendar-days-grid" id="calendar-days-grid">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: THÊM / CHỈNH SỬA LỆNH (TRADE FORM)  -->
+    <!-- ========================================== -->
+    <div class="modal-backdrop" id="modal-trade-form">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">⚡</span>
+                    <h2 class="modal-title" id="trade-modal-title">Ghi Nhận Lệnh Mới</h2>
+                </div>
+                <button class="modal-close-btn" id="btn-close-trade-modal">&times;</button>
+            </div>
+
+            <form id="trade-form" class="modal-body" autocomplete="off">
+                <input type="hidden" id="form-trade-id" value="">
+
+                <!-- TOP ROW: COIN PAIR & POSITION SWITCH -->
+                <div class="form-row form-grid-3">
+                    <div class="form-group">
+                        <label for="form-symbol" class="form-label required">Cặp Tiền (Coin)</label>
+                        <input type="text" id="form-symbol" class="form-control" placeholder="Ví dụ: BTC/USDT" required list="pairs-datalist">
+                        <datalist id="pairs-datalist"></datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Vị Thế</label>
+                        <div class="segmented-control position-toggle">
+                            <input type="radio" name="trade_type" id="type-long" value="Long" checked>
+                            <label for="type-long" class="segment-label segment-long">
+                                <span>↗ LONG / MUA</span>
+                            </label>
+                            <input type="radio" name="trade_type" id="type-short" value="Short">
+                            <label for="type-short" class="segment-label segment-short">
+                                <span>↘ SHORT / BÁN</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">Thị Trường & Đòn Bẩy</label>
+                        <div class="market-leverage-group">
+                            <select id="form-market-type" class="form-control">
+                                <option value="Futures">Futures</option>
+                                <option value="Spot">Spot</option>
+                            </select>
+                            <div class="leverage-input-wrapper" id="leverage-wrapper">
+                                <span class="leverage-prefix">x</span>
+                                <input type="number" id="form-leverage" class="form-control" value="10" min="1" max="125">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROW 2: DATES, TIMEFRAME & STATUS -->
+                <div class="form-row form-grid-4">
+                    <div class="form-group">
+                        <label for="form-status" class="form-label required">Trạng Thái Lệnh</label>
+                        <select id="form-status" class="form-control">
+                            <option value="Open">Đang mở (Open)</option>
+                            <option value="Closed" selected>Đã đóng (Closed)</option>
+                            <option value="Cancelled">Đã hủy (Cancelled)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-timeframe" class="form-label">Khung Giờ (TF)</label>
+                        <select id="form-timeframe" class="form-control">
+                            <option value="M5">M5</option>
+                            <option value="M15">M15</option>
+                            <option value="M30">M30</option>
+                            <option value="H1" selected>H1</option>
+                            <option value="H4">H4</option>
+                            <option value="D1">D1</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-entry-date" class="form-label required">Thời Gian Vào</label>
+                        <input type="datetime-local" id="form-entry-date" class="form-control" required>
+                    </div>
+
+                    <div class="form-group" id="exit-date-group">
+                        <label for="form-exit-date" class="form-label">Thời Gian Thoát</label>
+                        <input type="datetime-local" id="form-exit-date" class="form-control">
+                    </div>
+                </div>
+
+                <!-- ROW 3: PRICES & CAPITAL -->
+                <div class="form-row form-grid-3">
+                    <div class="form-group">
+                        <label for="form-entry-price" class="form-label required">Giá Vào (Entry Price)</label>
+                        <input type="number" step="any" id="form-entry-price" class="form-control mono" placeholder="0.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-stop-loss" class="form-label">Stop Loss (Cắt lỗ)</label>
+                        <input type="number" step="any" id="form-stop-loss" class="form-control mono text-loss" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-take-profit" class="form-label">Take Profit (Chốt lời)</label>
+                        <input type="number" step="any" id="form-take-profit" class="form-control mono text-win" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="form-row form-grid-3">
+                    <div class="form-group" id="exit-price-group">
+                        <label for="form-exit-price" class="form-label">Giá Thoát Lệnh (Exit Price)</label>
+                        <input type="number" step="any" id="form-exit-price" class="form-control mono" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-position-size" class="form-label required">Ký Quỹ / Margin ($)</label>
+                        <input type="number" step="any" id="form-position-size" class="form-control mono" placeholder="Ví dụ: 100" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-fees" class="form-label">Phí Giao Dịch ($)</label>
+                        <input type="number" step="any" id="form-fees" class="form-control mono" placeholder="0.00" value="0.0">
+                    </div>
+                </div>
+
+                <!-- LIVE METRICS COMPUTED CARD -->
+                <div class="live-calc-box">
+                    <div class="live-calc-header">
+                        <span class="live-dot"></span>
+                        <span class="live-title">TỰ ĐỘNG TÍNH TOÁN (LIVE METRICS)</span>
+                    </div>
+                    <div class="live-calc-grid">
+                        <div class="live-item">
+                            <span class="live-item-label">Planned R:R:</span>
+                            <span class="live-item-val" id="live-planned-rr">0.00</span>
+                        </div>
+                        <div class="live-item">
+                            <span class="live-item-label">Realized R:R:</span>
+                            <span class="live-item-val" id="live-realized-rr">0.00</span>
+                        </div>
+                        <div class="live-item">
+                            <span class="live-item-label">Lợi Nhuận Net ($):</span>
+                            <span class="live-item-val font-bold" id="live-pnl">$0.00</span>
+                        </div>
+                        <div class="live-item">
+                            <span class="live-item-label">Tỷ Suất ROI (%):</span>
+                            <span class="live-item-val font-bold" id="live-roi">0.00%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROW 4: STRATEGY & EMOTION -->
+                <div class="form-row form-grid-2">
+                    <div class="form-group">
+                        <label for="form-strategy" class="form-label">Chiến Lược (Setup)</label>
+                        <select id="form-strategy" class="form-control">
+                            <!-- Populated via API -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-emotion" class="form-label">Tâm Lý Giao Dịch</label>
+                        <select id="form-emotion" class="form-control">
+                            <!-- Populated via API -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ROW 5: NOTES & LESSONS -->
+                <div class="form-row form-grid-2">
+                    <div class="form-group">
+                        <label for="form-notes" class="form-label">Ghi Chú Phân Tích / Lý Do Vào</label>
+                        <textarea id="form-notes" class="form-control" rows="2" placeholder="Tại sao vào lệnh này? Kháng cự/hỗ trợ, mô hình giá..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="form-lessons" class="form-label">Bài Học / Sai Lầm Rút Ra</label>
+                        <textarea id="form-lessons" class="form-control" rows="2" placeholder="Có tuân thủ kế hoạch không? Lỗi gì cần khắc phục?"></textarea>
+                    </div>
+                </div>
+
+                <!-- ROW 6: CHART IMAGE CLIPBOARD / DRAG & DROP -->
+                <div class="form-group">
+                    <label class="form-label">Ảnh Biểu Đồ TradingView</label>
+                    <div class="chart-dropzone" id="chart-dropzone" tabindex="0">
+                        <input type="hidden" id="form-chart-path" value="">
+                        
+                        <div class="dropzone-idle" id="dropzone-idle">
+                            <div class="dropzone-icon">📋</div>
+                            <div class="dropzone-text">
+                                <strong>Nhấn Ctrl + V để Dán Ảnh Biểu Đồ Trực Tiếp</strong>
+                                <span>hoặc kéo thả ảnh vào đây, hoặc <span class="browse-link">chọn file từ máy</span></span>
+                            </div>
+                            <input type="file" id="file-chart-input" accept="image/*" style="display: none;">
+                        </div>
+
+                        <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
+                            <img id="preview-chart-img" src="" alt="TradingView Chart">
+                            <button type="button" class="btn-remove-chart" id="btn-remove-chart" title="Xóa ảnh">&times;</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL FOOTER -->
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-trade">Hủy Bỏ</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-trade">
+                        <span id="btn-save-text">Lưu Lệnh Vào Nhật Ký</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: IMAGE VIEWER (LIGHTBOX)             -->
+    <!-- ========================================== -->
+    <div class="lightbox-backdrop" id="modal-lightbox">
+        <div class="lightbox-container">
+            <button class="lightbox-close" id="btn-close-lightbox">&times;</button>
+            <img id="lightbox-img" src="" alt="Phóng to biểu đồ TradingView">
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- APP SCRIPT -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
