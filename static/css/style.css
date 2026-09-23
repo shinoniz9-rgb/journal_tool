@@ -152,6 +152,7 @@ body {
     letter-spacing: 0.5px;
     background: linear-gradient(90deg, #F0F6FC 0%, var(--win-green) 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -1462,6 +1463,7 @@ textarea.form-control {
     margin-top: 6px;
     background: linear-gradient(90deg, #FFFFFF 0%, var(--win-green) 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: 0.5px;
 }
