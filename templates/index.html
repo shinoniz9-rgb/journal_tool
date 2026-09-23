@@ -170,30 +170,8 @@
                     <div class="chart-card card-side-stats">
                         <div class="card-header">
                             <div class="card-title-group">
-                                <h2 class="card-title">Hiệu Suất Theo Chiến Lược</h2>
-                                <span class="card-subtitle">Tỷ lệ thắng theo Setup</span>
-                            </div>
-                        </div>
-                        <div class="breakdown-list" id="strategy-breakdown-list"></div>
-                    </div>
-                </div>
-
-                <div class="dashboard-bottom-grid">
-                    <div class="chart-card">
-                        <div class="card-header">
-                            <div class="card-title-group">
-                                <h2 class="card-title">Tác Động Của Tâm Lý Giao Dịch</h2>
-                                <span class="card-subtitle">Kỷ luật vs Cảm xúc tiêu cực</span>
-                            </div>
-                        </div>
-                        <div class="breakdown-list" id="emotion-breakdown-list"></div>
-                    </div>
-
-                    <div class="chart-card">
-                        <div class="card-header">
-                            <div class="card-title-group">
-                                <h2 class="card-title">Cặp Tiền Giao Dịch Nhiều Nhất</h2>
-                                <span class="card-subtitle">Hiệu quả theo từng tài sản</span>
+                                <h2 class="card-title">Hiệu Quả Cặp Tiền (BTC vs Vàng)</h2>
+                                <span class="card-subtitle">Tỷ lệ thắng & PnL</span>
                             </div>
                         </div>
                         <div class="breakdown-list" id="symbol-breakdown-list"></div>
@@ -228,9 +206,7 @@
                             <option value="Hòa (Breakeven)">Hòa (BE)</option>
                         </select>
 
-                        <select id="filter-strategy" class="filter-select">
-                            <option value="Tất cả">Tất cả Chiến lược</option>
-                        </select>
+
                     </div>
 
                     <div class="filter-actions">
@@ -262,16 +238,12 @@
                                 <th>#</th>
                                 <th>Cặp Tiền</th>
                                 <th>Vị Thế</th>
-                                <th>Thị Trường</th>
                                 <th>Trạng Thái</th>
                                 <th>Giá Vào</th>
                                 <th>Giá Thoát</th>
-                                <th>Ký Quỹ</th>
                                 <th>Net PnL ($)</th>
                                 <th>ROI (%)</th>
                                 <th>R:R</th>
-                                <th>Chiến Lược</th>
-                                <th>Tâm Lý</th>
                                 <th>Biểu Đồ</th>
                                 <th>Thời Gian</th>
                                 <th>Thao Tác</th>
@@ -417,7 +389,7 @@
     <!-- MODAL: THÊM / CHỈNH SỬA LỆNH (TRADE FORM)  -->
     <!-- ========================================== -->
     <div class="modal-backdrop" id="modal-trade-form">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-center-dialog">
             <div class="modal-header">
                 <div class="modal-title-group">
                     <span class="modal-icon">⚡</span>
@@ -430,48 +402,49 @@
                 <div class="modal-body modal-body-scroll">
                     <input type="hidden" id="form-trade-id" value="">
                     
-                    <!-- HIDDEN DEFAULT INPUTS (Thị trường, Đòn bẩy, Ký quỹ, Phí) -->
+                    <!-- HIDDEN DEFAULT INPUTS -->
                     <input type="hidden" id="form-market-type" value="Futures">
                     <input type="hidden" id="form-leverage" value="10">
                     <input type="hidden" id="form-position-size" value="100">
                     <input type="hidden" id="form-fees" value="0">
+                    <input type="hidden" id="form-strategy" value="">
+                    <input type="hidden" id="form-emotion" value="">
+                    <input type="hidden" id="form-notes" value="">
+                    <input type="hidden" id="form-lessons" value="">
 
-                    <!-- ROW 1: CHỌN MÃ GIAO DỊCH & VỊ THẾ LONG/SHORT -->
-                    <div class="form-row form-grid-2">
-                        <div class="form-group">
-                            <label for="form-symbol" class="form-label required">
-                                <span>Cặp Tiền / Mã Giao Dịch</span>
-                            </label>
-                            <input type="text" id="form-symbol" class="form-control mono font-bold" value="BTC/USDT" placeholder="BTC/USDT hoặc XAU/USD" required list="pairs-datalist">
-                            <datalist id="pairs-datalist">
-                                <option value="BTC/USDT">⚡ Bitcoin (BTC/USDT)</option>
-                                <option value="XAU/USD">🟡 Vàng (XAU/USD)</option>
-                            </datalist>
-
-                            <!-- QUICK SYMBOL CHIPS (CHỈ 2 MÃ BTC & VÀNG) -->
-                            <div class="quick-symbols-bar" id="quick-symbols-bar">
-                                <button type="button" class="quick-symbol-chip chip-crypto active" data-symbol="BTC/USDT">⚡ BTC/USDT</button>
-                                <button type="button" class="quick-symbol-chip chip-gold" data-symbol="XAU/USD">🟡 XAU/USD (Vàng)</button>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label required">Vị Thế Giao Dịch</label>
-                            <div class="segmented-control position-toggle">
-                                <input type="radio" name="trade_type" id="type-long" value="Long" checked>
-                                <label for="type-long" class="segment-label segment-long">
-                                    <span>↗ LONG / MUA</span>
-                                </label>
-                                <input type="radio" name="trade_type" id="type-short" value="Short">
-                                <label for="type-short" class="segment-label segment-short">
-                                    <span>↘ SHORT / BÁN</span>
-                                </label>
-                            </div>
+                    <!-- 1. CHỌN MÃ GIAO DỊCH (BTC HOẶC VÀNG) -->
+                    <div class="form-group">
+                        <label for="form-symbol" class="form-label required">Cặp Tiền / Mã Giao Dịch</label>
+                        <input type="hidden" id="form-symbol" value="BTC/USDT">
+                        <div class="quick-symbols-bar-large" id="quick-symbols-bar">
+                            <button type="button" class="symbol-pick-btn active" data-symbol="BTC/USDT">
+                                <span class="pick-icon">⚡</span>
+                                <span class="pick-name">BTC/USDT</span>
+                            </button>
+                            <button type="button" class="symbol-pick-btn" data-symbol="XAU/USD">
+                                <span class="pick-icon">🟡</span>
+                                <span class="pick-name">XAU/USD (Vàng)</span>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- ROW 2: TRẠNG THÁI & KHUNG GIỜ & THỜI GIAN -->
-                    <div class="form-row form-grid-4">
+                    <!-- 2. VỊ THẾ GIAO DỊCH (LONG / SHORT) -->
+                    <div class="form-group">
+                        <label class="form-label required">Vị Thế</label>
+                        <div class="segmented-control position-toggle">
+                            <input type="radio" name="trade_type" id="type-long" value="Long" checked>
+                            <label for="type-long" class="segment-label segment-long">
+                                <span>↗ LONG / MUA</span>
+                            </label>
+                            <input type="radio" name="trade_type" id="type-short" value="Short">
+                            <label for="type-short" class="segment-label segment-short">
+                                <span>↘ SHORT / BÁN</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3. TRẠNG THÁI & KHUNG GIỜ -->
+                    <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="form-status" class="form-label required">Trạng Thái Lệnh</label>
                             <select id="form-status" class="form-control">
@@ -491,23 +464,25 @@
                                 <option value="H1" selected>H1</option>
                                 <option value="H4">H4</option>
                                 <option value="D1">D1</option>
-                                <option value="W1">W1</option>
                             </select>
                         </div>
+                    </div>
 
+                    <!-- 4. THỜI GIAN VÀO & THOÁT -->
+                    <div class="form-row form-grid-2">
                         <div class="form-group">
-                            <label for="form-entry-date" class="form-label required">Thời Gian Vào Lệnh</label>
+                            <label for="form-entry-date" class="form-label required">Thời Gian Vào</label>
                             <input type="datetime-local" id="form-entry-date" class="form-control" required>
                         </div>
 
                         <div class="form-group" id="exit-date-group">
-                            <label for="form-exit-date" class="form-label">Thời Gian Thoát Lệnh</label>
+                            <label for="form-exit-date" class="form-label">Thời Gian Thoát</label>
                             <input type="datetime-local" id="form-exit-date" class="form-control">
                         </div>
                     </div>
 
-                    <!-- ROW 3: BỐN MỨC GIÁ CHỦ LỰC (GIÁ VÀO, GIÁ THOÁT, SL, TP) -->
-                    <div class="form-row form-grid-4">
+                    <!-- 5. BỐN MỨC GIÁ CHÍNH: GIÁ VÀO, GIÁ THOÁT, SL, TP -->
+                    <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="form-entry-price" class="form-label required">Giá Vào (Entry)</label>
                             <input type="number" step="any" id="form-entry-price" class="form-control mono font-bold" placeholder="0.00" required inputmode="decimal">
@@ -517,7 +492,9 @@
                             <label for="form-exit-price" class="form-label">Giá Thoát (Exit)</label>
                             <input type="number" step="any" id="form-exit-price" class="form-control mono font-bold" placeholder="0.00" inputmode="decimal">
                         </div>
+                    </div>
 
+                    <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="form-stop-loss" class="form-label">Stop Loss (Cắt lỗ)</label>
                             <input type="number" step="any" id="form-stop-loss" class="form-control mono text-loss" placeholder="0.00" inputmode="decimal">
@@ -529,11 +506,11 @@
                         </div>
                     </div>
 
-                    <!-- LIVE METRICS CARD (TỰ ĐỘNG TÍNH TOÁN R:R VÀ % ROI) -->
+                    <!-- 6. LIVE METRICS TỰ ĐỘNG TÍNH TOÁN -->
                     <div class="live-calc-box">
                         <div class="live-calc-header">
                             <span class="live-dot"></span>
-                            <span class="live-title">TỰ ĐỘNG TÍNH TOÁN THEO THỜI GIAN THỰC (LIVE METRICS)</span>
+                            <span class="live-title">TỰ ĐỘNG TÍNH TOÁN REALTIME</span>
                         </div>
                         <div class="live-calc-grid">
                             <div class="live-item">
@@ -555,33 +532,7 @@
                         </div>
                     </div>
 
-                    <!-- ROW 4: STRATEGY & EMOTION -->
-                    <div class="form-row form-grid-2">
-                        <div class="form-group">
-                            <label for="form-strategy" class="form-label">Chiến Lược (Setup)</label>
-                            <select id="form-strategy" class="form-control"></select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="form-emotion" class="form-label">Tâm Lý Giao Dịch</label>
-                            <select id="form-emotion" class="form-control"></select>
-                        </div>
-                    </div>
-
-                    <!-- ROW 5: NOTES & LESSONS -->
-                    <div class="form-row form-grid-2">
-                        <div class="form-group">
-                            <label for="form-notes" class="form-label">Ghi Chú Phân Tích / Lý Do Vào</label>
-                            <textarea id="form-notes" class="form-control" rows="2" placeholder="Tại sao vào lệnh này? Kháng cự/hỗ trợ, mô hình giá..."></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="form-lessons" class="form-label">Bài Học / Sai Lầm Rút Ra</label>
-                            <textarea id="form-lessons" class="form-control" rows="2" placeholder="Có tuân thủ kế hoạch không? Lỗi gì cần khắc phục?"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- ROW 6: CHART DROPZONE -->
+                    <!-- 7. ẢNH BIỂU ĐỒ TRADINGVIEW -->
                     <div class="form-group">
                         <label class="form-label">Ảnh Biểu Đồ TradingView</label>
                         <div class="chart-dropzone" id="chart-dropzone" tabindex="0">
@@ -590,12 +541,11 @@
                             <div class="dropzone-idle" id="dropzone-idle">
                                 <div class="dropzone-icon">📋</div>
                                 <div class="dropzone-text">
-                                    <strong>Nhấn Ctrl + V để Dán Ảnh Biểu Đồ Trực Tiếp</strong>
-                                    <span>hoặc kéo thả ảnh vào đây, hoặc <span class="browse-link">chọn file từ máy</span></span>
+                                    <strong>Dán ảnh (Ctrl+V) hoặc chọn từ máy</strong>
                                 </div>
                                 <button type="button" class="btn-mobile-camera" id="btn-mobile-camera">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                                    <span>📸 Chụp ảnh / Chọn từ thư viện điện thoại</span>
+                                    <span>📸 Chụp ảnh / Chọn từ thư viện</span>
                                 </button>
                                 <input type="file" id="file-chart-input" accept="image/*" style="display: none;">
                             </div>
@@ -608,7 +558,7 @@
                     </div>
                 </div>
 
-                <!-- STICKY MODAL FOOTER - ALWAYS PINNED AND VISIBLE -->
+                <!-- STICKY MODAL FOOTER -->
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="btn-cancel-trade">Hủy Bỏ</button>
                     <button type="submit" class="btn btn-primary" id="btn-save-trade">

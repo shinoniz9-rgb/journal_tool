@@ -379,27 +379,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            elements.formStrategy.innerHTML = '<option value="">-- Chọn chiến lược --</option>';
-            elements.filterStrategy.innerHTML = '<option value="Tất cả">Tất cả Chiến lược</option>';
-            data.strategies.forEach(s => {
-                const opt = document.createElement("option");
-                opt.value = s;
-                opt.textContent = s;
-                elements.formStrategy.appendChild(opt);
-
-                const fOpt = document.createElement("option");
-                fOpt.value = s;
-                fOpt.textContent = s;
-                elements.filterStrategy.appendChild(fOpt);
-            });
-
-            elements.formEmotion.innerHTML = '<option value="">-- Chọn tâm lý lúc vào lệnh --</option>';
-            data.emotions.forEach(e => {
-                const opt = document.createElement("option");
-                opt.value = e;
-                opt.textContent = e;
-                elements.formEmotion.appendChild(opt);
-            });
+            if (elements.filterStrategy && elements.filterStrategy.tagName === "SELECT") {
+                elements.filterStrategy.innerHTML = '<option value="Tất cả">Tất cả Chiến lược</option>';
+                data.strategies.forEach(s => {
+                    const fOpt = document.createElement("option");
+                    fOpt.value = s;
+                    fOpt.textContent = s;
+                    elements.filterStrategy.appendChild(fOpt);
+                });
+            }
 
         } catch (err) {
             console.error("Lỗi tải cấu hình:", err);
@@ -726,16 +714,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td class="mono text-muted">#${t.id}</td>
                 <td><strong class="font-bold">${t.symbol}</strong> <span class="text-muted" style="font-size:11px;">${t.timeframe || ''}</span></td>
                 <td>${typeBadge}</td>
-                <td>${marketInfo}</td>
                 <td>${statusBadge}</td>
-                <td class="mono">$${(t.entry_price || 0).toLocaleString()}</td>
-                <td class="mono">${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</td>
-                <td class="mono">$${(t.position_size || 0).toFixed(0)}</td>
+                <td class="mono font-bold">$${(t.entry_price || 0).toLocaleString()}</td>
+                <td class="mono font-bold">${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</td>
                 <td>${pnlHtml}</td>
                 <td>${roiHtml}</td>
                 <td>${rrHtml}</td>
-                <td><span style="font-size:12px;">${t.strategy || '-'}</span></td>
-                <td><span style="font-size:12px;">${t.emotion || '-'}</span></td>
                 <td>${chartHtml}</td>
                 <td class="text-muted" style="font-size:11px;">${dateStr}</td>
                 <td>
@@ -795,7 +779,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                         <div class="tc-badges-group">
                             ${typeBadge}
-                            ${marketInfo}
                             ${statusBadge}
                         </div>
                     </div>
@@ -805,8 +788,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="tc-metric-value mono">$${(t.entry_price || 0).toLocaleString()} ➔ ${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</span>
                         </div>
                         <div class="tc-metric-item">
-                            <span class="tc-metric-label">Ký Quỹ / R:R</span>
-                            <span class="tc-metric-value mono">$${(t.position_size || 0).toFixed(0)} | ${rrHtml}</span>
+                            <span class="tc-metric-label">Tỷ Lệ R:R</span>
+                            <span class="tc-metric-value mono">${rrHtml}</span>
                         </div>
                         <div class="tc-pnl-box">
                             <div>
@@ -818,11 +801,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             </div>
                         </div>
                     </div>
-                    ${(t.strategy || t.emotion) ? `
-                    <div class="tc-details-row">
-                        ${t.strategy ? `<span class="tc-tag">🎯 ${t.strategy}</span>` : ''}
-                        ${t.emotion ? `<span class="tc-tag">💭 ${t.emotion}</span>` : ''}
-                    </div>` : ''}
                     ${chartCardHtml}
                     <div class="tc-footer">
                         <span class="tc-date-text">🕒 ${dateStr}</span>
@@ -994,6 +972,10 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.formLeverage.value = "10";
         elements.formMarketType.value = "Futures";
         elements.formSymbol.value = "BTC/USDT";
+        document.querySelectorAll(".symbol-pick-btn").forEach(b => {
+            if (b.getAttribute("data-symbol") === "BTC/USDT") b.classList.add("active");
+            else b.classList.remove("active");
+        });
 
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -1020,7 +1002,11 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.tradeModalTitle.textContent = `Chỉnh Sửa Lệnh #${trade.id} (${trade.symbol})`;
             elements.btnSaveText.textContent = "Cập Nhật Lệnh";
 
-            elements.formSymbol.value = trade.symbol || "";
+            elements.formSymbol.value = trade.symbol || "BTC/USDT";
+            document.querySelectorAll(".symbol-pick-btn").forEach(b => {
+                if (b.getAttribute("data-symbol") === (trade.symbol || "BTC/USDT")) b.classList.add("active");
+                else b.classList.remove("active");
+            });
             if ((trade.trade_type || "Long") === "Long") {
                 elements.typeLong.checked = true;
             } else {
@@ -1612,3 +1598,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initApp();
 });
+
+
+        // Symbol Pick Buttons (BTC vs XAU)
+        document.querySelectorAll(".symbol-pick-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".symbol-pick-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                const sym = btn.getAttribute("data-symbol");
+                elements.formSymbol.value = sym;
+                if (sym.includes("XAU")) {
+                    elements.formMarketType.value = "Forex / CFD";
+                } else {
+                    elements.formMarketType.value = "Futures";
+                }
+            });
+        });
