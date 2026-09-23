@@ -50,7 +50,7 @@
                 </button>
             </nav>
 
-            <!-- ACTION BUTTONS -->
+            <!-- ACTION BUTTONS & USER PROFILE -->
             <div class="header-actions">
                 <button class="btn btn-primary" id="btn-open-add-trade">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -64,18 +64,23 @@
                 <button class="btn btn-icon" id="btn-refresh" title="Làm mới dữ liệu">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 </button>
+
+                <!-- USER PROFILE CHIP -->
+                <div class="user-profile-chip" id="user-profile-chip">
+                    <div class="user-avatar-circle" id="user-avatar-text">P</div>
+                    <span class="user-display-name" id="user-display-name">Trader</span>
+                    <button class="btn-logout" id="btn-logout" title="Đăng xuất tài khoản">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </button>
+                </div>
             </div>
         </header>
 
         <!-- MAIN VIEWPORTS -->
         <main class="app-main">
-            <!-- ========================================== -->
-            <!-- TAB 1: DASHBOARD & ANALYTICS               -->
-            <!-- ========================================== -->
+            <!-- TAB 1: DASHBOARD -->
             <section class="tab-content active" id="view-dashboard">
-                <!-- 6 KPI CARDS -->
                 <div class="kpi-grid">
-                    <!-- Net PnL -->
                     <div class="kpi-card card-glow" id="kpi-net-pnl-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Tổng Net PnL</span>
@@ -85,7 +90,6 @@
                         <div class="kpi-subtext" id="kpi-pnl-sub">0 lệnh đã đóng</div>
                     </div>
 
-                    <!-- Win Rate -->
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Tỷ Lệ Thắng (Win Rate)</span>
@@ -99,7 +103,6 @@
                         </div>
                     </div>
 
-                    <!-- Profit Factor -->
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Profit Factor (PF)</span>
@@ -111,7 +114,6 @@
                         </div>
                     </div>
 
-                    <!-- Avg Win / Loss -->
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Lãi TB / Lỗ TB</span>
@@ -124,7 +126,6 @@
                         <div class="kpi-subtext" id="kpi-win-loss-ratio">Tỷ lệ Lãi:Lỗ: 0.0x</div>
                     </div>
 
-                    <!-- Avg Realized R:R -->
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-label">R:R Thực Tế TB</span>
@@ -134,7 +135,6 @@
                         <div class="kpi-subtext">Tỷ lệ Risk:Reward thực tế</div>
                     </div>
 
-                    <!-- Consecutive Streak -->
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Chuỗi Thắng / Thua Max</span>
@@ -148,9 +148,7 @@
                     </div>
                 </div>
 
-                <!-- CHARTS ROW -->
                 <div class="dashboard-charts-grid">
-                    <!-- Main Chart: Equity Curve -->
                     <div class="chart-card card-main-chart">
                         <div class="card-header">
                             <div class="card-title-group">
@@ -163,7 +161,6 @@
                         </div>
                     </div>
 
-                    <!-- Side Panel: Strategy & Emotion Stats -->
                     <div class="chart-card card-side-stats">
                         <div class="card-header">
                             <div class="card-title-group">
@@ -171,13 +168,10 @@
                                 <span class="card-subtitle">Tỷ lệ thắng theo Setup</span>
                             </div>
                         </div>
-                        <div class="breakdown-list" id="strategy-breakdown-list">
-                            <!-- Injected via JS -->
-                        </div>
+                        <div class="breakdown-list" id="strategy-breakdown-list"></div>
                     </div>
                 </div>
 
-                <!-- PSYCHOLOGY & COINS ROW -->
                 <div class="dashboard-bottom-grid">
                     <div class="chart-card">
                         <div class="card-header">
@@ -186,9 +180,7 @@
                                 <span class="card-subtitle">Kỷ luật vs Cảm xúc tiêu cực</span>
                             </div>
                         </div>
-                        <div class="breakdown-list" id="emotion-breakdown-list">
-                            <!-- Injected via JS -->
-                        </div>
+                        <div class="breakdown-list" id="emotion-breakdown-list"></div>
                     </div>
 
                     <div class="chart-card">
@@ -198,18 +190,13 @@
                                 <span class="card-subtitle">Hiệu quả theo từng tài sản</span>
                             </div>
                         </div>
-                        <div class="breakdown-list" id="symbol-breakdown-list">
-                            <!-- Injected via JS -->
-                        </div>
+                        <div class="breakdown-list" id="symbol-breakdown-list"></div>
                     </div>
                 </div>
             </section>
 
-            <!-- ========================================== -->
-            <!-- TAB 2: TRADES JOURNAL                      -->
-            <!-- ========================================== -->
+            <!-- TAB 2: JOURNAL TABLE -->
             <section class="tab-content" id="view-journal">
-                <!-- FILTER TOOLBAR -->
                 <div class="filter-bar">
                     <div class="filter-inputs">
                         <div class="search-input-group">
@@ -249,7 +236,6 @@
                     </div>
                 </div>
 
-                <!-- TRADES DATA TABLE CONTAINER -->
                 <div class="table-container">
                     <table class="trades-table" id="trades-table">
                         <thead>
@@ -272,29 +258,23 @@
                                 <th>Thao Tác</th>
                             </tr>
                         </thead>
-                        <tbody id="trades-tbody">
-                            <!-- Injected dynamically via app.js -->
-                        </tbody>
+                        <tbody id="trades-tbody"></tbody>
                     </table>
                 </div>
 
-                <!-- EMPTY STATE -->
                 <div class="empty-state" id="trades-empty-state" style="display: none;">
                     <div class="empty-icon">📭</div>
-                    <h3>Chưa có lệnh nào phù hợp</h3>
-                    <p>Hãy thêm lệnh mới hoặc thay đổi bộ lọc để xem nhật ký của bạn.</p>
+                    <h3>Chưa có lệnh nào trong nhật ký của bạn</h3>
+                    <p>Hãy thêm lệnh mới hoặc thay đổi bộ lọc để bắt đầu theo dõi.</p>
                     <button class="btn btn-primary" id="btn-empty-add-trade">
                         <span>+ Thêm Lệnh Ngay</span>
                     </button>
                 </div>
             </section>
 
-            <!-- ========================================== -->
-            <!-- TAB 3: TRADING CALENDAR                    -->
-            <!-- ========================================== -->
+            <!-- TAB 3: CALENDAR -->
             <section class="tab-content" id="view-calendar">
                 <div class="calendar-card">
-                    <!-- Calendar Header -->
                     <div class="calendar-header">
                         <div class="calendar-month-selector">
                             <button class="btn btn-icon" id="btn-cal-prev">
@@ -307,7 +287,6 @@
                             <button class="btn btn-ghost" id="btn-cal-today">Hôm nay</button>
                         </div>
 
-                        <!-- Month Summary Chips -->
                         <div class="calendar-summary-chips">
                             <div class="cal-chip">
                                 <span class="chip-label">PnL Tháng:</span>
@@ -324,7 +303,6 @@
                         </div>
                     </div>
 
-                    <!-- Calendar Grid -->
                     <div class="calendar-weekdays">
                         <div>Thứ 2</div>
                         <div>Thứ 3</div>
@@ -334,12 +312,65 @@
                         <div class="weekend">Thứ 7</div>
                         <div class="weekend">Chủ Nhật</div>
                     </div>
-                    <div class="calendar-days-grid" id="calendar-days-grid">
-                        <!-- Injected via JS -->
-                    </div>
+                    <div class="calendar-days-grid" id="calendar-days-grid"></div>
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: ĐĂNG NHẬP & ĐĂNG KÝ (AUTH MODAL)    -->
+    <!-- ========================================== -->
+    <div class="modal-backdrop auth-backdrop" id="modal-auth">
+        <div class="modal-dialog auth-dialog">
+            <div class="auth-header">
+                <span class="auth-brand-icon">⚡</span>
+                <h2 class="auth-title">CRYPTO TRADING JOURNAL</h2>
+                <p class="auth-subtitle">Đăng nhập hoặc đăng ký để quản lý nhật ký giao dịch riêng tư</p>
+            </div>
+
+            <!-- Segmented Auth Switch -->
+            <div class="auth-tabs">
+                <button class="auth-tab-btn active" id="tab-login-btn">ĐĂNG NHẬP</button>
+                <button class="auth-tab-btn" id="tab-register-btn">ĐĂNG KÝ TÀI KHOẢN</button>
+            </div>
+
+            <div class="auth-alert" id="auth-alert" style="display: none;"></div>
+
+            <!-- Form Đăng Nhập -->
+            <form id="form-login" class="auth-form active" autocomplete="off">
+                <div class="form-group">
+                    <label for="login-username" class="form-label required">Tên đăng nhập</label>
+                    <input type="text" id="login-username" class="form-control" placeholder="Nhập tên đăng nhập..." required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="login-password" class="form-label required">Mật khẩu</label>
+                    <input type="password" id="login-password" class="form-control" placeholder="Nhập mật khẩu..." required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btn-submit-login">
+                    <span>Đăng Nhập Vào Nhật Ký</span>
+                </button>
+            </form>
+
+            <!-- Form Đăng Ký -->
+            <form id="form-register" class="auth-form" autocomplete="off" style="display: none;">
+                <div class="form-group">
+                    <label for="reg-username" class="form-label required">Tên đăng nhập</label>
+                    <input type="text" id="reg-username" class="form-control" placeholder="Tối thiểu 3 ký tự (ví dụ: trader99)" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-display-name" class="form-label">Tên hiển thị (Biệt danh)</label>
+                    <input type="text" id="reg-display-name" class="form-control" placeholder="Ví dụ: Phat Trader">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password" class="form-label required">Mật khẩu</label>
+                    <input type="password" id="reg-password" class="form-control" placeholder="Tối thiểu 4 ký tự..." required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btn-submit-register">
+                    <span>Tạo Tài Khoản Mới</span>
+                </button>
+            </form>
+        </div>
     </div>
 
     <!-- ========================================== -->
@@ -358,7 +389,6 @@
             <form id="trade-form" class="modal-body" autocomplete="off">
                 <input type="hidden" id="form-trade-id" value="">
 
-                <!-- TOP ROW: COIN PAIR & POSITION SWITCH -->
                 <div class="form-row form-grid-3">
                     <div class="form-group">
                         <label for="form-symbol" class="form-label required">Cặp Tiền (Coin)</label>
@@ -395,7 +425,6 @@
                     </div>
                 </div>
 
-                <!-- ROW 2: DATES, TIMEFRAME & STATUS -->
                 <div class="form-row form-grid-4">
                     <div class="form-group">
                         <label for="form-status" class="form-label required">Trạng Thái Lệnh</label>
@@ -429,7 +458,6 @@
                     </div>
                 </div>
 
-                <!-- ROW 3: PRICES & CAPITAL -->
                 <div class="form-row form-grid-3">
                     <div class="form-group">
                         <label for="form-entry-price" class="form-label required">Giá Vào (Entry Price)</label>
@@ -464,7 +492,7 @@
                     </div>
                 </div>
 
-                <!-- LIVE METRICS COMPUTED CARD -->
+                <!-- LIVE METRICS -->
                 <div class="live-calc-box">
                     <div class="live-calc-header">
                         <span class="live-dot"></span>
@@ -490,24 +518,18 @@
                     </div>
                 </div>
 
-                <!-- ROW 4: STRATEGY & EMOTION -->
                 <div class="form-row form-grid-2">
                     <div class="form-group">
                         <label for="form-strategy" class="form-label">Chiến Lược (Setup)</label>
-                        <select id="form-strategy" class="form-control">
-                            <!-- Populated via API -->
-                        </select>
+                        <select id="form-strategy" class="form-control"></select>
                     </div>
 
                     <div class="form-group">
                         <label for="form-emotion" class="form-label">Tâm Lý Giao Dịch</label>
-                        <select id="form-emotion" class="form-control">
-                            <!-- Populated via API -->
-                        </select>
+                        <select id="form-emotion" class="form-control"></select>
                     </div>
                 </div>
 
-                <!-- ROW 5: NOTES & LESSONS -->
                 <div class="form-row form-grid-2">
                     <div class="form-group">
                         <label for="form-notes" class="form-label">Ghi Chú Phân Tích / Lý Do Vào</label>
@@ -520,7 +542,7 @@
                     </div>
                 </div>
 
-                <!-- ROW 6: CHART IMAGE CLIPBOARD / DRAG & DROP -->
+                <!-- CHART IMAGE -->
                 <div class="form-group">
                     <label class="form-label">Ảnh Biểu Đồ TradingView</label>
                     <div class="chart-dropzone" id="chart-dropzone" tabindex="0">
@@ -542,7 +564,6 @@
                     </div>
                 </div>
 
-                <!-- MODAL FOOTER -->
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="btn-cancel-trade">Hủy Bỏ</button>
                     <button type="submit" class="btn btn-primary" id="btn-save-trade">
@@ -553,9 +574,7 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL: IMAGE VIEWER (LIGHTBOX)             -->
-    <!-- ========================================== -->
+    <!-- LIGHTBOX -->
     <div class="lightbox-backdrop" id="modal-lightbox">
         <div class="lightbox-container">
             <button class="lightbox-close" id="btn-close-lightbox">&times;</button>
@@ -563,10 +582,9 @@
         </div>
     </div>
 
-    <!-- TOAST NOTIFICATIONS CONTAINER -->
+    <!-- TOAST NOTIFICATIONS -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- APP SCRIPT -->
     <script src="/static/js/app.js"></script>
 </body>
 </html>

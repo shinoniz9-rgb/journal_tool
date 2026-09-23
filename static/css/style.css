@@ -1373,3 +1373,166 @@ textarea.form-control {
         padding: 6px;
     }
 }
+
+/* ==========================================================================
+   MULTI-USER AUTHENTICATION STYLES (TRADINGVIEW DARK STYLE)
+   ========================================================================== */
+
+/* User Profile Chip in Header */
+.user-profile-chip {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 5px 12px 5px 6px;
+    border-radius: 20px;
+    transition: var(--transition-fast);
+}
+
+.user-profile-chip:hover {
+    border-color: var(--border-glow);
+}
+
+.user-avatar-circle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--win-green));
+    color: #071711;
+    font-weight: 800;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-display-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.btn-logout {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+}
+
+.btn-logout:hover {
+    color: var(--loss-red);
+    background-color: rgba(255, 71, 87, 0.15);
+}
+
+/* Auth Backdrop & Dialog */
+.auth-backdrop {
+    z-index: 5000 !important;
+}
+
+.auth-dialog {
+    max-width: 440px !important;
+    padding: 30px 28px !important;
+    background: linear-gradient(180deg, #151A22 0%, #0F131A 100%) !important;
+    border: 1px solid rgba(0, 245, 155, 0.3) !important;
+    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 245, 155, 0.1) !important;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 22px;
+}
+
+.auth-brand-icon {
+    font-size: 36px;
+    display: inline-block;
+    filter: drop-shadow(0 0 12px rgba(0, 245, 155, 0.6));
+    animation: icon-pulse 3s infinite;
+}
+
+.auth-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin-top: 6px;
+    background: linear-gradient(90deg, #FFFFFF 0%, var(--win-green) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+}
+
+.auth-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Auth Segmented Tabs */
+.auth-tabs {
+    display: flex;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    margin-bottom: 20px;
+}
+
+.auth-tab-btn {
+    flex: 1;
+    padding: 9px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+}
+
+.auth-tab-btn.active {
+    background-color: var(--bg-input-focus);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Auth Form & Alert */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.auth-alert {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    display: none;
+    line-height: 1.4;
+}
+
+.auth-alert-error {
+    background-color: rgba(255, 71, 87, 0.15);
+    border: 1px solid var(--loss-red);
+    color: #FFA5AC;
+}
+
+.auth-alert-success {
+    background-color: rgba(0, 245, 155, 0.15);
+    border: 1px solid var(--win-green);
+    color: var(--win-green);
+}
+
+.btn-block {
+    width: 100%;
+    padding: 12px;
+    font-size: 14px;
+    margin-top: 6px;
+}

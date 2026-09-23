@@ -1,16 +1,16 @@
 """
 Crypto Trading Journal - Web Application Backend (Flask)
-Phục vụ API và Giao diện Web Dark Mode phong cách TradingView
+Hỗ trợ Xác thực Đa Người Dùng (Multi-User Authentication) & Tách biệt dữ liệu
 """
 import os
 import sys
 import io
 import base64
 import uuid
-from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, Response
+from functools import wraps
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session
 
-# Thêm thư mục gốc vào sys.path
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
@@ -25,16 +25,32 @@ from utils.calculations import calculate_trade_metrics, calculate_portfolio_stat
 from utils.export_import import export_trades_to_csv
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "crypto-journal-secret-2026")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "crypto-journal-secret-key-2026-auth")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # Tối đa 16MB ảnh
 
-# Đảm bảo thư mục cần thiết luôn tồn tại
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(CHARTS_DIR, exist_ok=True)
 
 # Khởi tạo Database Manager
 db = DatabaseManager()
-db.insert_sample_trades_if_empty()
+db.insert_sample_trades_if_empty(user_id=1)
+
+
+# ==========================================
+# AUTHENTICATION HELPER & DECORATOR
+# ==========================================
+
+def get_current_user_id() -> int | None:
+    return session.get("user_id")
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not get_current_user_id():
+            return jsonify({"error": "Vui lòng đăng nhập để tiếp tục", "auth_required": True}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 # ==========================================
@@ -43,23 +59,84 @@ db.insert_sample_trades_if_empty()
 
 @app.route("/")
 def index():
-    """Trang chủ ứng dụng Web"""
     return render_template("index.html")
-
 
 @app.route("/charts/<path:filename>")
 def serve_chart(filename):
-    """Phục vụ ảnh chụp màn hình biểu đồ lưu trong data/charts/"""
     return send_from_directory(CHARTS_DIR, filename)
-
 
 @app.route("/api/health")
 def health_check():
-    """Endpoint kiểm tra trạng thái hoạt động (Dành cho Render / UptimeRobot)"""
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "trades_count": db.count_trades()
+        "total_trades": db.count_trades()
+    })
+
+
+# ==========================================
+# API XÁC THỰC NGƯỜI DÙNG (AUTH API)
+# ==========================================
+
+@app.route("/api/auth/register", methods=["POST"])
+def auth_register():
+    data = request.json or {}
+    username = data.get("username", "")
+    password = data.get("password", "")
+    display_name = data.get("display_name", "")
+
+    result = db.register_user(username=username, password=password, display_name=display_name)
+    if result["success"]:
+        user = result["user"]
+        session.permanent = True
+        session["user_id"] = user["id"]
+        # Thêm dữ liệu mẫu ban đầu cho tài khoản mới để trải nghiệm
+        db.insert_sample_trades_if_empty(user_id=user["id"])
+        return jsonify({
+            "success": True,
+            "message": "Đăng ký tài khoản thành công!",
+            "user": user
+        }), 201
+    return jsonify({"error": result.get("error", "Đăng ký thất bại")}), 400
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    data = request.json or {}
+    username = data.get("username", "")
+    password = data.get("password", "")
+
+    user = db.authenticate_user(username=username, password=password)
+    if user:
+        session.permanent = True
+        session["user_id"] = user["id"]
+        return jsonify({
+            "success": True,
+            "message": "Đăng nhập thành công!",
+            "user": user
+        })
+    return jsonify({"error": "Tên đăng nhập hoặc mật khẩu không chính xác!"}), 401
+
+@app.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    session.clear()
+    return jsonify({"success": True, "message": "Đã đăng xuất thành công"})
+
+@app.route("/api/auth/me", methods=["GET"])
+def auth_me():
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"logged_in": False, "user": None})
+    user = db.get_user_by_id(user_id)
+    if not user:
+        session.clear()
+        return jsonify({"logged_in": False, "user": None})
+    return jsonify({
+        "logged_in": True,
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "display_name": user["display_name"]
+        }
     })
 
 
@@ -69,7 +146,6 @@ def health_check():
 
 @app.route("/api/config", methods=["GET"])
 def get_config():
-    """Lấy danh sách các cặp tiền, khung giờ, chiến lược, tâm lý gợi ý"""
     return jsonify({
         "pairs": DEFAULT_PAIRS,
         "timeframes": TIMEFRAMES,
@@ -82,24 +158,26 @@ def get_config():
 
 
 # ==========================================
-# CÁC API THỐNG KÊ & BÁO CÁO (ANALYTICS)
+# CÁC API THỐNG KÊ & BÁO CÁO (THEO USER)
 # ==========================================
 
 @app.route("/api/stats", methods=["GET"])
+@login_required
 def get_stats():
-    """Lấy dữ liệu thống kê KPI, biểu đồ Equity Curve và phân tích chiến lược/tâm lý"""
-    trades = db.get_all_trades(order_desc=False)
+    user_id = get_current_user_id()
+    trades = db.get_all_trades(user_id=user_id, order_desc=False)
     stats = calculate_portfolio_statistics(trades)
     return jsonify(stats)
 
 
 # ==========================================
-# CÁC API QUẢN LÝ LỆNH GIAO DỊCH (CRUD)
+# CÁC API QUẢN LÝ LỆNH GIAO DỊCH (CRUD THEO USER)
 # ==========================================
 
 @app.route("/api/trades", methods=["GET"])
+@login_required
 def get_trades():
-    """Lấy danh sách lệnh có hỗ trợ lọc và tìm kiếm"""
+    user_id = get_current_user_id()
     symbol = request.args.get("symbol")
     status = request.args.get("status")
     result = request.args.get("result")
@@ -107,6 +185,7 @@ def get_trades():
     search = request.args.get("search")
 
     trades = db.filter_trades(
+        user_id=user_id,
         symbol=symbol,
         status=status,
         result=result,
@@ -115,22 +194,21 @@ def get_trades():
     )
     return jsonify(trades)
 
-
 @app.route("/api/trades/<int:trade_id>", methods=["GET"])
+@login_required
 def get_trade(trade_id):
-    """Xem chi tiết 1 lệnh"""
-    trade = db.get_trade(trade_id)
+    user_id = get_current_user_id()
+    trade = db.get_trade(user_id=user_id, trade_id=trade_id)
     if not trade:
-        return jsonify({"error": "Không tìm thấy lệnh này"}), 404
+        return jsonify({"error": "Không tìm thấy lệnh hoặc bạn không có quyền xem"}), 404
     return jsonify(trade)
 
-
 @app.route("/api/trades", methods=["POST"])
+@login_required
 def add_trade():
-    """Thêm một lệnh giao dịch mới vào nhật ký"""
+    user_id = get_current_user_id()
     data = request.json or {}
     
-    # Tính toán lại các chỉ số tự động để đảm bảo độ chính xác
     try:
         entry_price = float(data.get("entry_price", 0))
         exit_price = float(data["exit_price"]) if data.get("exit_price") not in (None, "") else None
@@ -152,27 +230,26 @@ def add_trade():
             fees=fees
         )
 
-        # Cập nhật kết quả tính toán vào payload
         data["planned_rr"] = metrics["planned_rr"]
         data["realized_rr"] = metrics["realized_rr"]
         if exit_price is not None:
             data["pnl"] = metrics["pnl"]
             data["pnl_percent"] = metrics["pnl_percent"]
 
-        trade_id = db.add_trade(data)
+        trade_id = db.add_trade(user_id=user_id, data=data)
         return jsonify({"success": True, "trade_id": trade_id, "message": "Thêm lệnh thành công"}), 201
 
     except Exception as e:
         return jsonify({"error": f"Lỗi xử lý dữ liệu: {str(e)}"}), 400
 
-
 @app.route("/api/trades/<int:trade_id>", methods=["PUT"])
+@login_required
 def update_trade(trade_id):
-    """Cập nhật thông tin một lệnh giao dịch"""
+    user_id = get_current_user_id()
     data = request.json or {}
-    existing = db.get_trade(trade_id)
+    existing = db.get_trade(user_id=user_id, trade_id=trade_id)
     if not existing:
-        return jsonify({"error": "Không tìm thấy lệnh"}), 404
+        return jsonify({"error": "Không tìm thấy lệnh này"}), 404
 
     try:
         entry_price = float(data.get("entry_price", existing.get("entry_price", 0)))
@@ -204,7 +281,7 @@ def update_trade(trade_id):
             data["pnl"] = 0.0
             data["pnl_percent"] = 0.0
 
-        success = db.update_trade(trade_id, data)
+        success = db.update_trade(user_id=user_id, trade_id=trade_id, data=data)
         if success:
             return jsonify({"success": True, "message": "Cập nhật lệnh thành công"})
         return jsonify({"error": "Không thể cập nhật"}), 500
@@ -212,15 +289,14 @@ def update_trade(trade_id):
     except Exception as e:
         return jsonify({"error": f"Lỗi cập nhật: {str(e)}"}), 400
 
-
 @app.route("/api/trades/<int:trade_id>", methods=["DELETE"])
+@login_required
 def delete_trade(trade_id):
-    """Xóa một lệnh giao dịch"""
-    existing = db.get_trade(trade_id)
+    user_id = get_current_user_id()
+    existing = db.get_trade(user_id=user_id, trade_id=trade_id)
     if not existing:
-        return jsonify({"error": "Lệnh không tồn tại"}), 404
+        return jsonify({"error": "Lệnh không tồn tại hoặc bạn không có quyền xóa"}), 404
 
-    # Xóa file ảnh liên quan nếu có
     chart_path = existing.get("chart_image_path")
     if chart_path and os.path.exists(chart_path):
         try:
@@ -228,35 +304,29 @@ def delete_trade(trade_id):
         except Exception:
             pass
 
-    success = db.delete_trade(trade_id)
+    success = db.delete_trade(user_id=user_id, trade_id=trade_id)
     if success:
         return jsonify({"success": True, "message": "Đã xóa lệnh thành công"})
     return jsonify({"error": "Không thể xóa lệnh"}), 500
 
 
 # ==========================================
-# API DÁN ẢNH / TẢI ẢNH BIỂU ĐỒ (CLIPBOARD & UPLOAD)
+# API DÁN ẢNH / TẢI ẢNH BIỂU ĐỒ
 # ==========================================
 
 @app.route("/api/upload-chart", methods=["POST"])
+@login_required
 def upload_chart():
-    """
-    Xử lý tải ảnh biểu đồ lên máy chủ:
-    - Hỗ trợ dán ảnh trực tiếp từ Clipboard (Base64)
-    - Hỗ trợ tải file thông thường (Multipart FormData)
-    """
     try:
         filename = f"chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.png"
         filepath = os.path.join(CHARTS_DIR, filename)
 
-        # Trường hợp 1: Dán ảnh Clipboard (Base64)
         if request.is_json:
             data = request.json or {}
             base64_data = data.get("image_base64", "")
             if not base64_data:
                 return jsonify({"error": "Không có dữ liệu ảnh"}), 400
 
-            # Bỏ header data:image/png;base64, nếu có
             if "," in base64_data:
                 base64_data = base64_data.split(",")[1]
 
@@ -264,17 +334,14 @@ def upload_chart():
             with open(filepath, "wb") as f:
                 f.write(image_bytes)
 
-        # Trường hợp 2: Upload file từ ô chọn file (FormData)
         elif "file" in request.files:
             uploaded_file = request.files["file"]
             if uploaded_file.filename == "":
                 return jsonify({"error": "Chưa chọn file"}), 400
             uploaded_file.save(filepath)
-
         else:
             return jsonify({"error": "Dữ liệu ảnh không hợp lệ"}), 400
 
-        # Trả về URL để hiển thị và đường dẫn lưu trữ
         web_url = f"/charts/{filename}"
         return jsonify({
             "success": True,
@@ -282,20 +349,20 @@ def upload_chart():
             "url": web_url,
             "filepath": filepath
         })
-
     except Exception as e:
         return jsonify({"error": f"Lỗi lưu ảnh: {str(e)}"}), 500
 
 
 # ==========================================
-# API XUẤT CSV (EXPORT DATA)
+# API XUẤT CSV
 # ==========================================
 
 @app.route("/api/export-csv", methods=["GET"])
+@login_required
 def export_csv():
-    """Xuất toàn bộ nhật ký giao dịch ra file CSV có dấu UTF-8 (mở tốt trên Excel)"""
-    trades = db.get_all_trades(order_desc=True)
-    temp_csv_path = os.path.join(DATA_DIR, "temp_export.csv")
+    user_id = get_current_user_id()
+    trades = db.get_all_trades(user_id=user_id, order_desc=True)
+    temp_csv_path = os.path.join(DATA_DIR, f"temp_export_{user_id}.csv")
     
     if export_trades_to_csv(trades, temp_csv_path):
         return send_file(
@@ -309,5 +376,5 @@ def export_csv():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Web Crypto Trading Journal đang khởi động tại: http://localhost:{port}")
+    print(f"🚀 Web Crypto Trading Journal Multi-User đang chạy tại: http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=True)

@@ -1,10 +1,11 @@
 """
-Database Manager for SQLite Storage
+Database Manager for SQLite Storage with Multi-User Authentication
 """
 import sqlite3
 import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 from config import DB_PATH
 
 
@@ -19,55 +20,164 @@ class DatabaseManager:
         return conn
 
     def init_db(self):
-        """Khởi tạo cấu trúc bảng nếu chưa có"""
+        """Khởi tạo cấu trúc các bảng và tự động bổ sung cột mới nếu cần"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+
+            # 1. Bảng Users (Hệ thống xác thực đa người dùng)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                display_name TEXT,
+                created_at TEXT NOT NULL
+            );
+            """)
+
+            # 2. Bảng Trades (Lưu trữ các lệnh giao dịch)
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS trades (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER DEFAULT 1,
                 symbol TEXT NOT NULL,
-                trade_type TEXT NOT NULL,         -- 'Long' / 'Short'
-                market_type TEXT NOT NULL,        -- 'Futures' / 'Spot'
-                status TEXT NOT NULL,             -- 'Open' / 'Closed' / 'Cancelled'
-                timeframe TEXT,                   -- 'M5', 'H1', 'H4'...
-                entry_date TEXT NOT NULL,         -- 'YYYY-MM-DD HH:MM:SS'
-                exit_date TEXT,                   -- 'YYYY-MM-DD HH:MM:SS'
+                trade_type TEXT NOT NULL,
+                market_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                timeframe TEXT,
+                entry_date TEXT NOT NULL,
+                exit_date TEXT,
                 entry_price REAL NOT NULL,
                 exit_price REAL,
                 stop_loss REAL,
                 take_profit REAL,
                 leverage INTEGER DEFAULT 1,
-                position_size REAL NOT NULL,      -- Margin ($) hoặc Vị thế
+                position_size REAL NOT NULL,
                 fees REAL DEFAULT 0.0,
-                pnl REAL DEFAULT 0.0,             -- Lợi nhuận ròng ($)
-                pnl_percent REAL DEFAULT 0.0,     -- ROI (%)
-                planned_rr REAL DEFAULT 0.0,      -- Tỷ lệ R:R dự kiến
-                realized_rr REAL DEFAULT 0.0,     -- Tỷ lệ R:R thực tế
-                strategy TEXT,                    -- Chiến lược vào lệnh
-                emotion TEXT,                     -- Tâm lý giao dịch
-                notes TEXT,                       -- Phân tích / Lý do vào lệnh
-                lessons TEXT,                     -- Bài học / Sai lầm
-                chart_image_path TEXT,            -- Đường dẫn ảnh chart
+                pnl REAL DEFAULT 0.0,
+                pnl_percent REAL DEFAULT 0.0,
+                planned_rr REAL DEFAULT 0.0,
+                realized_rr REAL DEFAULT 0.0,
+                strategy TEXT,
+                emotion TEXT,
+                notes TEXT,
+                lessons TEXT,
+                chart_image_path TEXT,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
             );
             """)
+
+            # 3. Migration: Kiểm tra và bổ sung cột user_id nếu bảng trades đã tồn tại từ trước
+            cursor.execute("PRAGMA table_info(trades)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if "user_id" not in columns:
+                try:
+                    cursor.execute("ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT 1;")
+                except Exception:
+                    pass
+
             conn.commit()
 
-    def add_trade(self, data: Dict[str, Any]) -> int:
+        self._ensure_default_user()
+
+    def _ensure_default_user(self):
+        """Đảm bảo luôn có ít nhất 1 tài khoản ban đầu"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM users")
+            if cursor.fetchone()[0] == 0:
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cursor.execute("""
+                INSERT INTO users (username, password_hash, display_name, created_at)
+                VALUES (?, ?, ?, ?)
+                """, (
+                    "admin",
+                    generate_password_hash("123456"),
+                    "Admin Trader",
+                    now
+                ))
+                conn.commit()
+
+    # =========================================================================
+    # QUẢN LÝ TÀI KHOẢN NGƯỜI DÙNG (USER AUTHENTICATION)
+    # =========================================================================
+
+    def register_user(self, username: str, password: str, display_name: Optional[str] = None) -> Dict[str, Any]:
+        clean_user = username.strip().lower()
+        if not clean_user or len(clean_user) < 3:
+            return {"success": False, "error": "Tên đăng nhập phải có ít nhất 3 ký tự"}
+        if not password or len(password) < 4:
+            return {"success": False, "error": "Mật khẩu phải có ít nhất 4 ký tự"}
+
+        disp_name = (display_name.strip() if display_name else "") or clean_user.capitalize()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        pwd_hash = generate_password_hash(password)
+
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                INSERT INTO users (username, password_hash, display_name, created_at)
+                VALUES (?, ?, ?, ?)
+                """, (clean_user, pwd_hash, disp_name, now))
+                conn.commit()
+                user_id = cursor.lastrowid
+                return {
+                    "success": True,
+                    "user": {
+                        "id": user_id,
+                        "username": clean_user,
+                        "display_name": disp_name
+                    }
+                }
+        except sqlite3.IntegrityError:
+            return {"success": False, "error": "Tên đăng nhập này đã được sử dụng, vui lòng chọn tên khác"}
+        except Exception as e:
+            return {"success": False, "error": f"Lỗi tạo tài khoản: {str(e)}"}
+
+    def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
+        clean_user = username.strip().lower()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE username = ?", (clean_user,))
+            row = cursor.fetchone()
+            if row:
+                user = dict(row)
+                if check_password_hash(user["password_hash"], password):
+                    return {
+                        "id": user["id"],
+                        "username": user["username"],
+                        "display_name": user["display_name"]
+                    }
+        return None
+
+    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, display_name, created_at FROM users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    # =========================================================================
+    # QUẢN LÝ LỆNH GIAO DỊCH (TRADES) THEO TỪNG USER
+    # =========================================================================
+
+    def add_trade(self, user_id: int, data: Dict[str, Any]) -> int:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
             INSERT INTO trades (
-                symbol, trade_type, market_type, status, timeframe,
+                user_id, symbol, trade_type, market_type, status, timeframe,
                 entry_date, exit_date, entry_price, exit_price,
                 stop_loss, take_profit, leverage, position_size, fees,
                 pnl, pnl_percent, planned_rr, realized_rr,
                 strategy, emotion, notes, lessons, chart_image_path,
                 created_at, updated_at
             ) VALUES (
-                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
                 ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
@@ -75,6 +185,7 @@ class DatabaseManager:
                 ?, ?
             )
             """, (
+                user_id,
                 data.get("symbol", "").upper(),
                 data.get("trade_type", "Long"),
                 data.get("market_type", "Futures"),
@@ -83,9 +194,9 @@ class DatabaseManager:
                 data.get("entry_date", now),
                 data.get("exit_date"),
                 float(data.get("entry_price", 0.0)),
-                float(data.get("exit_price")) if data.get("exit_price") is not None else None,
-                float(data.get("stop_loss")) if data.get("stop_loss") is not None else None,
-                float(data.get("take_profit")) if data.get("take_profit") is not None else None,
+                float(data.get("exit_price")) if data.get("exit_price") not in (None, "") else None,
+                float(data.get("stop_loss")) if data.get("stop_loss") not in (None, "") else None,
+                float(data.get("take_profit")) if data.get("take_profit") not in (None, "") else None,
                 int(data.get("leverage", 1)),
                 float(data.get("position_size", 0.0)),
                 float(data.get("fees", 0.0)),
@@ -104,7 +215,7 @@ class DatabaseManager:
             conn.commit()
             return cursor.lastrowid
 
-    def update_trade(self, trade_id: int, data: Dict[str, Any]) -> bool:
+    def update_trade(self, user_id: int, trade_id: int, data: Dict[str, Any]) -> bool:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -116,7 +227,7 @@ class DatabaseManager:
                 pnl = ?, pnl_percent = ?, planned_rr = ?, realized_rr = ?,
                 strategy = ?, emotion = ?, notes = ?, lessons = ?, chart_image_path = ?,
                 updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """, (
                 data.get("symbol", "").upper(),
                 data.get("trade_type", "Long"),
@@ -126,9 +237,9 @@ class DatabaseManager:
                 data.get("entry_date"),
                 data.get("exit_date"),
                 float(data.get("entry_price", 0.0)),
-                float(data.get("exit_price")) if data.get("exit_price") is not None else None,
-                float(data.get("stop_loss")) if data.get("stop_loss") is not None else None,
-                float(data.get("take_profit")) if data.get("take_profit") is not None else None,
+                float(data.get("exit_price")) if data.get("exit_price") not in (None, "") else None,
+                float(data.get("stop_loss")) if data.get("stop_loss") not in (None, "") else None,
+                float(data.get("take_profit")) if data.get("take_profit") not in (None, "") else None,
                 int(data.get("leverage", 1)),
                 float(data.get("position_size", 0.0)),
                 float(data.get("fees", 0.0)),
@@ -142,43 +253,45 @@ class DatabaseManager:
                 data.get("lessons", ""),
                 data.get("chart_image_path", ""),
                 now,
-                trade_id
+                trade_id,
+                user_id
             ))
             conn.commit()
             return cursor.rowcount > 0
 
-    def delete_trade(self, trade_id: int) -> bool:
+    def delete_trade(self, user_id: int, trade_id: int) -> bool:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM trades WHERE id = ?", (trade_id,))
+            cursor.execute("DELETE FROM trades WHERE id = ? AND user_id = ?", (trade_id, user_id))
             conn.commit()
             return cursor.rowcount > 0
 
-    def get_trade(self, trade_id: int) -> Optional[Dict[str, Any]]:
+    def get_trade(self, user_id: int, trade_id: int) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM trades WHERE id = ?", (trade_id,))
+            cursor.execute("SELECT * FROM trades WHERE id = ? AND user_id = ?", (trade_id, user_id))
             row = cursor.fetchone()
             return dict(row) if row else None
 
-    def get_all_trades(self, order_desc: bool = True) -> List[Dict[str, Any]]:
+    def get_all_trades(self, user_id: int, order_desc: bool = True) -> List[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             order = "DESC" if order_desc else "ASC"
-            cursor.execute(f"SELECT * FROM trades ORDER BY id {order}")
+            cursor.execute(f"SELECT * FROM trades WHERE user_id = ? ORDER BY id {order}", (user_id,))
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
 
     def filter_trades(
         self,
+        user_id: int,
         symbol: Optional[str] = None,
         status: Optional[str] = None,
-        result: Optional[str] = None,  # 'All', 'Win', 'Loss', 'Breakeven'
+        result: Optional[str] = None,
         strategy: Optional[str] = None,
         search_query: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        query = "SELECT * FROM trades WHERE 1=1"
-        params = []
+        query = "SELECT * FROM trades WHERE user_id = ?"
+        params = [user_id]
 
         if symbol and symbol != "Tất cả":
             query += " AND symbol LIKE ?"
@@ -212,15 +325,17 @@ class DatabaseManager:
             cursor.execute(query, params)
             return [dict(r) for r in cursor.fetchall()]
 
-    def count_trades(self) -> int:
+    def count_trades(self, user_id: Optional[int] = None) -> int:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM trades")
+            if user_id is not None:
+                cursor.execute("SELECT COUNT(*) FROM trades WHERE user_id = ?", (user_id,))
+            else:
+                cursor.execute("SELECT COUNT(*) FROM trades")
             return cursor.fetchone()[0]
 
-    def insert_sample_trades_if_empty(self):
-        """Thêm dữ liệu mẫu nếu database đang trống để người dùng trải nghiệm ngay"""
-        if self.count_trades() > 0:
+    def insert_sample_trades_if_empty(self, user_id: int = 1):
+        if self.count_trades(user_id) > 0:
             return
 
         sample_data = [
@@ -248,83 +363,8 @@ class DatabaseManager:
                 "notes": "Bắt sóng hồi tại vùng Order Block H1 sau khi quét thanh khoản đáy cũ.",
                 "lessons": "Kiên nhẫn chờ retest là yếu tố sống còn.",
                 "chart_image_path": ""
-            },
-            {
-                "symbol": "ETH/USDT",
-                "trade_type": "Short",
-                "market_type": "Futures",
-                "status": "Closed",
-                "timeframe": "M15",
-                "entry_date": "2026-09-16 10:15:00",
-                "exit_date": "2026-09-16 11:30:00",
-                "entry_price": 2420.0,
-                "exit_price": 2360.0,
-                "stop_loss": 2445.0,
-                "take_profit": 2350.0,
-                "leverage": 10,
-                "position_size": 150.0,
-                "fees": 3.2,
-                "pnl": 34.0,
-                "pnl_percent": 22.67,
-                "planned_rr": 2.8,
-                "realized_rr": 2.4,
-                "strategy": "Breakout / Phá vỡ đỉnh đáy",
-                "emotion": "Tự tin (Confident)",
-                "notes": "Phá vỡ cản hỗ trợ M15 với volume lớn.",
-                "lessons": "Chốt lời từng phần khi chạm cản tâm lý.",
-                "chart_image_path": ""
-            },
-            {
-                "symbol": "SOL/USDT",
-                "trade_type": "Long",
-                "market_type": "Futures",
-                "status": "Closed",
-                "timeframe": "H4",
-                "entry_date": "2026-09-17 19:00:00",
-                "exit_date": "2026-09-18 03:20:00",
-                "entry_price": 142.5,
-                "exit_price": 139.0,
-                "stop_loss": 139.0,
-                "take_profit": 152.0,
-                "leverage": 5,
-                "position_size": 250.0,
-                "fees": 2.8,
-                "pnl": -33.5,
-                "pnl_percent": -13.4,
-                "planned_rr": 2.71,
-                "realized_rr": -1.0,
-                "strategy": "Trend Following / Bám xu hướng",
-                "emotion": "FOMO (Sợ bỏ lỡ)",
-                "notes": "Vào lệnh quá sớm khi nến H4 chưa đóng, bị quét râu dính Stop Loss.",
-                "lessons": "Không FOMO khi nến chưa đóng cửa xác nhận!",
-                "chart_image_path": ""
-            },
-            {
-                "symbol": "BTC/USDT",
-                "trade_type": "Short",
-                "market_type": "Futures",
-                "status": "Open",
-                "timeframe": "H4",
-                "entry_date": "2026-09-21 16:00:00",
-                "exit_date": None,
-                "entry_price": 63800.0,
-                "exit_price": None,
-                "stop_loss": 64600.0,
-                "take_profit": 61500.0,
-                "leverage": 10,
-                "position_size": 300.0,
-                "fees": 3.0,
-                "pnl": 0.0,
-                "pnl_percent": 0.0,
-                "planned_rr": 2.88,
-                "realized_rr": 0.0,
-                "strategy": "RSI Phân kỳ",
-                "emotion": "Kỷ luật (Disciplined)",
-                "notes": "Phân kỳ đỉnh RSI trên khung H4 chạm vùng kháng cự cứng.",
-                "lessons": "",
-                "chart_image_path": ""
             }
         ]
 
-        for item in sample_data:
-            self.add_trade(item)
+        for trade in sample_data:
+            self.add_trade(user_id, trade)

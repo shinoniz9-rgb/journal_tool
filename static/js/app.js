@@ -1,10 +1,12 @@
 /**
  * Crypto Trading Journal - Modern Frontend Application Logic
+ * Hỗ trợ Đa Người Dùng (Multi-User Authentication) & Phân quyền dữ liệu
  */
 
 document.addEventListener("DOMContentLoaded", () => {
     // State management
     const state = {
+        user: null,
         trades: [],
         stats: null,
         config: null,
@@ -15,6 +17,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // DOM Elements
     const elements = {
+        // Auth Elements
+        modalAuth: document.getElementById("modal-auth"),
+        tabLoginBtn: document.getElementById("tab-login-btn"),
+        tabRegisterBtn: document.getElementById("tab-register-btn"),
+        formLogin: document.getElementById("form-login"),
+        formRegister: document.getElementById("form-register"),
+        authAlert: document.getElementById("auth-alert"),
+        loginUsername: document.getElementById("login-username"),
+        loginPassword: document.getElementById("login-password"),
+        regUsername: document.getElementById("reg-username"),
+        regPassword: document.getElementById("reg-password"),
+        regDisplayName: document.getElementById("reg-display-name"),
+        btnSubmitLogin: document.getElementById("btn-submit-login"),
+        btnSubmitRegister: document.getElementById("btn-submit-register"),
+
+        // User Profile Chip
+        userProfileChip: document.getElementById("user-profile-chip"),
+        userAvatarText: document.getElementById("user-avatar-text"),
+        userDisplayName: document.getElementById("user-display-name"),
+        btnLogout: document.getElementById("btn-logout"),
+
         // Navigation Tabs
         tabBtns: document.querySelectorAll(".nav-tab"),
         tabViews: document.querySelectorAll(".tab-content"),
@@ -55,7 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
         typeShort: document.getElementById("type-short"),
         formMarketType: document.getElementById("form-market-type"),
         formLeverage: document.getElementById("form-leverage"),
-        leverageWrapper: document.getElementById("leverage-wrapper"),
         formStatus: document.getElementById("form-status"),
         formTimeframe: document.getElementById("form-timeframe"),
         formEntryDate: document.getElementById("form-entry-date"),
@@ -86,7 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
         fileChartInput: document.getElementById("file-chart-input"),
         btnRemoveChart: document.getElementById("btn-remove-chart"),
 
-        // Datalist
         pairsDatalist: document.getElementById("pairs-datalist"),
 
         // Lightbox
@@ -104,7 +125,6 @@ document.addEventListener("DOMContentLoaded", () => {
         btnCalNext: document.getElementById("btn-cal-next"),
         btnCalToday: document.getElementById("btn-cal-today"),
 
-        // Toast container
         toastContainer: document.getElementById("toast-container"),
     };
 
@@ -131,12 +151,163 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
+    // AUTHENTICATION LOGIC (LOGIN / REGISTER / LOGOUT)
+    // ==========================================
+    async function checkAuthStatus() {
+        try {
+            const res = await fetch("/api/auth/me");
+            const data = await res.json();
+            if (data.logged_in && data.user) {
+                onUserLoggedIn(data.user);
+            } else {
+                showAuthModal();
+            }
+        } catch (err) {
+            console.error("Lỗi kiểm tra auth:", err);
+            showAuthModal();
+        }
+    }
+
+    function showAuthModal() {
+        elements.modalAuth.classList.add("active");
+        elements.userProfileChip.style.display = "none";
+        hideAuthAlert();
+    }
+
+    function hideAuthModal() {
+        elements.modalAuth.classList.remove("active");
+    }
+
+    function showAuthAlert(msg, type = "error") {
+        elements.authAlert.textContent = msg;
+        elements.authAlert.className = `auth-alert auth-alert-${type}`;
+        elements.authAlert.style.display = "block";
+    }
+
+    function hideAuthAlert() {
+        elements.authAlert.style.display = "none";
+        elements.authAlert.textContent = "";
+    }
+
+    function onUserLoggedIn(user) {
+        state.user = user;
+        hideAuthModal();
+
+        // Cập nhật Profile Badge ở Header
+        const firstLetter = (user.display_name || user.username || "T").charAt(0).toUpperCase();
+        elements.userAvatarText.textContent = firstLetter;
+        elements.userDisplayName.textContent = user.display_name || user.username;
+        elements.userProfileChip.style.display = "flex";
+
+        // Nạp dữ liệu riêng của user này
+        refreshAllData();
+    }
+
+    async function handleLoginSubmit(e) {
+        e.preventDefault();
+        hideAuthAlert();
+        const username = elements.loginUsername.value.trim();
+        const password = elements.loginPassword.value;
+
+        if (!username || !password) {
+            showAuthAlert("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu!");
+            return;
+        }
+
+        try {
+            elements.btnSubmitLogin.disabled = true;
+            elements.btnSubmitLogin.textContent = "Đang xác thực...";
+
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                showAuthAlert(data.error || "Đăng nhập thất bại!");
+                return;
+            }
+
+            showToast(`Chào mừng bạn trở lại, ${data.user.display_name || data.user.username}!`, "success");
+            onUserLoggedIn(data.user);
+            elements.formLogin.reset();
+
+        } catch (err) {
+            showAuthAlert("Không thể kết nối đến máy chủ. Vui lòng thử lại!");
+        } finally {
+            elements.btnSubmitLogin.disabled = false;
+            elements.btnSubmitLogin.textContent = "Đăng Nhập Vào Nhật Ký";
+        }
+    }
+
+    async function handleRegisterSubmit(e) {
+        e.preventDefault();
+        hideAuthAlert();
+        const username = elements.regUsername.value.trim();
+        const password = elements.regPassword.value;
+        const displayName = elements.regDisplayName.value.trim();
+
+        if (username.length < 3) {
+            showAuthAlert("Tên đăng nhập phải có ít nhất 3 ký tự!");
+            return;
+        }
+        if (password.length < 4) {
+            showAuthAlert("Mật khẩu phải có ít nhất 4 ký tự!");
+            return;
+        }
+
+        try {
+            elements.btnSubmitRegister.disabled = true;
+            elements.btnSubmitRegister.textContent = "Đang tạo tài khoản...";
+
+            const res = await fetch("/api/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password, display_name: displayName })
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                showAuthAlert(data.error || "Đăng ký thất bại!");
+                return;
+            }
+
+            showToast(`Đăng ký tài khoản thành công! Chào mừng ${data.user.display_name}!`, "success");
+            onUserLoggedIn(data.user);
+            elements.formRegister.reset();
+
+        } catch (err) {
+            showAuthAlert("Lỗi kết nối máy chủ khi đăng ký!");
+        } finally {
+            elements.btnSubmitRegister.disabled = false;
+            elements.btnSubmitRegister.textContent = "Tạo Tài Khoản Mới";
+        }
+    }
+
+    async function handleLogout() {
+        if (!confirm("Bạn có chắc chắn muốn đăng xuất không?")) return;
+        try {
+            await fetch("/api/auth/logout", { method: "POST" });
+            state.user = null;
+            state.trades = [];
+            state.stats = null;
+            showToast("Đã đăng xuất thành công!", "info");
+            showAuthModal();
+        } catch (err) {
+            console.error("Lỗi đăng xuất:", err);
+            showAuthModal();
+        }
+    }
+
+    // ==========================================
     // INITIALIZATION & DATA FETCHING
     // ==========================================
     async function initApp() {
         setupEventListeners();
         await loadConfig();
-        await refreshAllData();
+        await checkAuthStatus();
     }
 
     async function loadConfig() {
@@ -145,7 +316,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             state.config = data;
 
-            // Nạp gợi ý cặp tiền
             elements.pairsDatalist.innerHTML = "";
             elements.filterSymbol.innerHTML = '<option value="Tất cả">Tất cả Cặp tiền</option>';
             data.pairs.forEach(pair => {
@@ -159,7 +329,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 elements.filterSymbol.appendChild(filterOpt);
             });
 
-            // Nạp danh sách Chiến lược
             elements.formStrategy.innerHTML = '<option value="">-- Chọn chiến lược --</option>';
             elements.filterStrategy.innerHTML = '<option value="Tất cả">Tất cả Chiến lược</option>';
             data.strategies.forEach(s => {
@@ -174,7 +343,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 elements.filterStrategy.appendChild(fOpt);
             });
 
-            // Nạp danh sách Tâm lý
             elements.formEmotion.innerHTML = '<option value="">-- Chọn tâm lý lúc vào lệnh --</option>';
             data.emotions.forEach(e => {
                 const opt = document.createElement("option");
@@ -189,6 +357,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function refreshAllData() {
+        if (!state.user) return;
         await Promise.all([loadStats(), loadTrades()]);
         if (state.currentTab === "calendar") {
             renderCalendar();
@@ -201,6 +370,10 @@ document.addEventListener("DOMContentLoaded", () => {
     async function loadStats() {
         try {
             const res = await fetch("/api/stats");
+            if (res.status === 401) {
+                showAuthModal();
+                return;
+            }
             const stats = await res.json();
             state.stats = stats;
 
@@ -213,16 +386,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderKpiCards(stats) {
-        // 1. Net PnL
         const pnlEl = document.getElementById("kpi-net-pnl");
-        const pnlCard = document.getElementById("kpi-net-pnl-card");
         const pnlVal = stats.net_pnl || 0;
         pnlEl.textContent = `${pnlVal >= 0 ? "+" : ""}$${pnlVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         pnlEl.className = `kpi-value ${pnlVal > 0 ? "text-win" : pnlVal < 0 ? "text-loss" : "text-be"}`;
         
         document.getElementById("kpi-pnl-sub").textContent = `${stats.closed_trades_count || 0} lệnh đã hoàn tất (${stats.open_trades_count || 0} đang mở)`;
 
-        // 2. Win Rate
         const wrEl = document.getElementById("kpi-win-rate");
         const wrVal = stats.win_rate || 0;
         wrEl.textContent = `${wrVal.toFixed(1)}%`;
@@ -231,21 +401,16 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-losses").textContent = `${stats.loss_trades || 0}L`;
         document.getElementById("kpi-be").textContent = `${stats.breakeven_trades || 0}BE`;
 
-        // 3. Profit Factor
         document.getElementById("kpi-profit-factor").textContent = (stats.profit_factor || 0).toFixed(2);
         document.getElementById("kpi-total-profit").textContent = `+$${(stats.total_profit || 0).toLocaleString()}`;
         document.getElementById("kpi-total-loss").textContent = `-$${(stats.total_loss || 0).toLocaleString()}`;
 
-        // 4. Avg Win / Loss
         document.getElementById("kpi-avg-win").textContent = `+$${(stats.avg_win || 0).toFixed(2)}`;
         document.getElementById("kpi-avg-loss").textContent = `-$${(stats.avg_loss || 0).toFixed(2)}`;
         const ratio = stats.avg_loss > 0 ? (stats.avg_win / stats.avg_loss).toFixed(1) : "N/A";
         document.getElementById("kpi-win-loss-ratio").textContent = `Tỷ lệ Lãi:Lỗ: ${ratio}x`;
 
-        // 5. Avg R:R
         document.getElementById("kpi-avg-rr").textContent = `1 : ${(stats.avg_rr || 0).toFixed(2)}`;
-
-        // 6. Streaks
         document.getElementById("kpi-max-wins").textContent = `${stats.max_consecutive_wins || 0}W`;
         document.getElementById("kpi-max-losses").textContent = `${stats.max_consecutive_losses || 0}L`;
     }
@@ -254,7 +419,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const ctx = document.getElementById("equityChart");
         if (!ctx) return;
 
-        // Chuẩn bị nhãn và dữ liệu
         let labels = [];
         let dataPoints = [];
 
@@ -266,7 +430,6 @@ document.addEventListener("DOMContentLoaded", () => {
             dataPoints = curveData.map(c => c[1]);
         }
 
-        // Hủy chart cũ nếu đã tồn tại
         if (state.chartInstance) {
             state.chartInstance.destroy();
         }
@@ -299,10 +462,7 @@ document.addEventListener("DOMContentLoaded", () => {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: "index"
-                },
+                interaction: { intersect: false, mode: "index" },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -340,7 +500,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderBreakdowns(stats) {
-        // 1. Strategy breakdown
+        // Strategy
         const stratContainer = document.getElementById("strategy-breakdown-list");
         stratContainer.innerHTML = "";
         const strats = stats.strategy_stats || {};
@@ -371,7 +531,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // 2. Emotion breakdown
+        // Emotion
         const emoContainer = document.getElementById("emotion-breakdown-list");
         emoContainer.innerHTML = "";
         const emos = stats.emotion_stats || {};
@@ -401,7 +561,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // 3. Symbol breakdown
+        // Symbol
         const symContainer = document.getElementById("symbol-breakdown-list");
         symContainer.innerHTML = "";
         const syms = stats.symbol_stats || {};
@@ -445,6 +605,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (elements.filterStrategy.value !== "Tất cả") params.append("strategy", elements.filterStrategy.value);
 
             const res = await fetch(`/api/trades?${params.toString()}`);
+            if (res.status === 401) {
+                showAuthModal();
+                return;
+            }
             const trades = await res.json();
             state.trades = trades;
 
@@ -469,18 +633,13 @@ document.addEventListener("DOMContentLoaded", () => {
         trades.forEach(t => {
             const tr = document.createElement("tr");
 
-            // Format Type Badge
             const isLong = (t.trade_type || "Long").toLowerCase() === "long";
             const typeBadge = `<span class="badge ${isLong ? 'badge-long' : 'badge-short'}">${isLong ? '↗ LONG' : '↘ SHORT'}</span>`;
 
-            // Format Market & Leverage
             const isFutures = (t.market_type || "Futures") === "Futures";
             const marketInfo = `<span class="badge ${isFutures ? 'badge-open' : 'badge-closed'}">${t.market_type} ${isFutures ? `x${t.leverage || 1}` : ''}</span>`;
-
-            // Status Badge
             const statusBadge = `<span class="badge ${t.status === 'Open' ? 'badge-open' : 'badge-closed'}">${t.status}</span>`;
 
-            // PnL & ROI formatting
             const pnl = t.pnl || 0;
             const pnlPercent = t.pnl_percent || 0;
             let pnlHtml = "-";
@@ -494,21 +653,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 pnlHtml = `<span class="badge badge-open">Đang chạy</span>`;
             }
 
-            // Realized / Planned RR
             const rr = t.status === "Closed" ? (t.realized_rr || 0).toFixed(2) : (t.planned_rr || 0).toFixed(2);
             const rrHtml = `<span class="mono">${rr > 0 ? `1:${rr}` : '-'}</span>`;
 
-            // Chart thumbnail
             let chartHtml = `<span class="no-chart">Không</span>`;
             if (t.chart_image_path) {
-                // Đảm bảo URL chính xác
                 const chartUrl = t.chart_image_path.startsWith("/") || t.chart_image_path.startsWith("http") 
                     ? t.chart_image_path 
                     : `/charts/${t.chart_image_path.split(/[\\/]/).pop()}`;
                 chartHtml = `<img src="${chartUrl}" class="chart-thumb" alt="Chart" data-src="${chartUrl}" title="Nhấn để phóng to">`;
             }
 
-            // Time entry
             const dateStr = t.entry_date ? t.entry_date.substring(5, 16) : "-";
 
             tr.innerHTML = `
@@ -539,7 +694,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 </td>
             `;
 
-            // Row click event (trừ click nút action hay ảnh)
             tr.addEventListener("click", (e) => {
                 if (e.target.closest(".action-btn") || e.target.closest(".chart-thumb")) return;
                 openEditModal(t.id);
@@ -548,7 +702,6 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.tradesTbody.appendChild(tr);
         });
 
-        // Gắn sự kiện click ảnh phóng to
         document.querySelectorAll(".chart-thumb").forEach(img => {
             img.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -556,7 +709,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Gắn sự kiện Edit / Delete
         document.querySelectorAll(".btn-edit").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -577,9 +729,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
     function renderCalendar() {
         const year = state.calDate.getFullYear();
-        const month = state.calDate.getMonth(); // 0-indexed
+        const month = state.calDate.getMonth();
 
-        // Header Title
         const monthNames = [
             "Tháng 01", "Tháng 02", "Tháng 03", "Tháng 04",
             "Tháng 05", "Tháng 06", "Tháng 07", "Tháng 08",
@@ -587,16 +738,13 @@ document.addEventListener("DOMContentLoaded", () => {
         ];
         elements.calMonthTitle.textContent = `${monthNames[month]} / ${year}`;
 
-        // Lấy ngày đầu tiên và số ngày trong tháng
         const firstDayOfMonth = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
         const totalDays = lastDayOfMonth.getDate();
 
-        // Thứ trong tuần của ngày 1 (0: CN, 1: T2,... -> Chuyển thành T2: 0, ..., CN: 6)
         let startingDay = firstDayOfMonth.getDay() - 1;
         if (startingDay === -1) startingDay = 6;
 
-        // Nhóm dữ liệu lệnh theo ngày (YYYY-MM-DD)
         const dailyData = {};
         let monthTotalPnl = 0;
         let monthWins = 0;
@@ -608,7 +756,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const dateStr = t.exit_date || t.entry_date;
             if (!dateStr) return;
 
-            const dayKey = dateStr.substring(0, 10); // 'YYYY-MM-DD'
+            const dayKey = dateStr.substring(0, 10);
             const [tY, tM] = dayKey.split("-").map(Number);
             
             if (tY === year && tM === month + 1) {
@@ -631,7 +779,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Cập nhật tóm tắt tháng
         elements.calMonthPnl.textContent = `${monthTotalPnl >= 0 ? '+' : ''}$${monthTotalPnl.toFixed(2)}`;
         elements.calMonthPnl.className = `chip-value ${monthTotalPnl >= 0 ? 'text-win' : 'text-loss'}`;
         const totalDecided = monthWins + monthLosses;
@@ -639,10 +786,8 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.calMonthWr.textContent = `${wr}%`;
         elements.calMonthTradesCount.textContent = `${monthTradesCount} lệnh`;
 
-        // Render Grid
         elements.calendarDaysGrid.innerHTML = "";
 
-        // Ngày của tháng trước để lấp đầy ô trống
         const prevMonthLastDay = new Date(year, month, 0).getDate();
         for (let i = startingDay - 1; i >= 0; i--) {
             const cell = document.createElement("div");
@@ -651,7 +796,6 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.calendarDaysGrid.appendChild(cell);
         }
 
-        // Ngày của tháng hiện tại
         for (let d = 1; d <= totalDays; d++) {
             const dStr = String(d).padStart(2, "0");
             const mStr = String(month + 1).padStart(2, "0");
@@ -689,17 +833,19 @@ document.addEventListener("DOMContentLoaded", () => {
     // MODAL & FORM INTERACTIONS
     // ==========================================
     function openAddModal() {
+        if (!state.user) {
+            showAuthModal();
+            return;
+        }
         elements.tradeForm.reset();
         elements.formTradeId.value = "";
         elements.tradeModalTitle.textContent = "Ghi Nhận Lệnh Mới";
         elements.btnSaveText.textContent = "Lưu Lệnh Vào Nhật Ký";
 
-        // Mặc định thời gian vào là bây giờ
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         elements.formEntryDate.value = now.toISOString().slice(0, 16);
 
-        // Reset ảnh dropzone
         resetDropzone();
         updateFormLiveCalculations();
 
@@ -709,6 +855,10 @@ document.addEventListener("DOMContentLoaded", () => {
     async function openEditModal(tradeId) {
         try {
             const res = await fetch(`/api/trades/${tradeId}`);
+            if (res.status === 401) {
+                showAuthModal();
+                return;
+            }
             if (!res.ok) throw new Error("Không tìm thấy lệnh");
             const trade = await res.json();
 
@@ -747,7 +897,6 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.formNotes.value = trade.notes || "";
             elements.formLessons.value = trade.lessons || "";
 
-            // Xử lý ảnh biểu đồ
             if (trade.chart_image_path) {
                 const chartUrl = trade.chart_image_path.startsWith("/") || trade.chart_image_path.startsWith("http")
                     ? trade.chart_image_path
@@ -838,9 +987,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ==========================================
-    // LIVE FORM CALCULATIONS
-    // ==========================================
     function updateFormLiveCalculations() {
         const isLong = elements.typeLong.checked;
         const entry = parseFloat(elements.formEntryPrice.value) || 0;
@@ -856,7 +1002,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let pnl = 0;
         let roi = 0;
 
-        // 1. Planned R:R
         if (entry > 0 && sl && tp) {
             let risk = isLong ? (entry - sl) : (sl - entry);
             let reward = isLong ? (tp - entry) : (entry - tp);
@@ -865,7 +1010,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // 2. Realized R:R & PnL
         if (entry > 0 && exit && exit > 0 && margin > 0) {
             let priceChangeRatio = isLong ? (exit - entry) / entry : (entry - exit) / entry;
             let rawPnl = priceChangeRatio * (margin * lev);
@@ -900,11 +1044,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ==========================================
-    // CLIPBOARD PASTE & IMAGE DROPZONE
-    // ==========================================
     function setupDropzone() {
-        // Click để duyệt file
         elements.chartDropzone.addEventListener("click", () => {
             elements.fileChartInput.click();
         });
@@ -914,14 +1054,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (file) uploadImageFile(file);
         });
 
-        // Xóa ảnh đã đính kèm
         elements.btnRemoveChart.addEventListener("click", (e) => {
             e.stopPropagation();
             resetDropzone();
             showToast("Đã gỡ ảnh biểu đồ", "info");
         });
 
-        // Kéo thả ảnh (Drag & Drop)
         ["dragenter", "dragover"].forEach(eventName => {
             elements.chartDropzone.addEventListener(eventName, (e) => {
                 e.preventDefault();
@@ -945,11 +1083,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Bắt sự kiện DÁN ẢNH TỪ CLIPBOARD (Ctrl + V)
         window.addEventListener("paste", (e) => {
-            // Chỉ bắt khi Modal đang mở
             if (!elements.modalTradeForm.classList.contains("active")) return;
-
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf("image") !== -1) {
@@ -997,9 +1132,6 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.dropzonePreview.style.display = "none";
     }
 
-    // ==========================================
-    // LIGHTBOX (IMAGE VIEWER)
-    // ==========================================
     function openLightbox(src) {
         elements.lightboxImg.src = src;
         elements.modalLightbox.classList.add("active");
@@ -1010,11 +1142,30 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.lightboxImg.src = "";
     }
 
-    // ==========================================
-    // EVENT LISTENERS SETUP
-    // ==========================================
     function setupEventListeners() {
-        // Tab switching
+        // Auth Tab switching
+        elements.tabLoginBtn.addEventListener("click", () => {
+            elements.tabLoginBtn.classList.add("active");
+            elements.tabRegisterBtn.classList.remove("active");
+            elements.formLogin.style.display = "flex";
+            elements.formRegister.style.display = "none";
+            hideAuthAlert();
+        });
+
+        elements.tabRegisterBtn.addEventListener("click", () => {
+            elements.tabRegisterBtn.classList.add("active");
+            elements.tabLoginBtn.classList.remove("active");
+            elements.formRegister.style.display = "flex";
+            elements.formLogin.style.display = "none";
+            hideAuthAlert();
+        });
+
+        // Auth Form Submits
+        elements.formLogin.addEventListener("submit", handleLoginSubmit);
+        elements.formRegister.addEventListener("submit", handleRegisterSubmit);
+        elements.btnLogout.addEventListener("click", handleLogout);
+
+        // App Navigation Tabs
         elements.tabBtns.forEach(btn => {
             btn.addEventListener("click", () => {
                 const targetTab = btn.getAttribute("data-tab");
@@ -1034,14 +1185,13 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Add trade buttons
+        // Trade Actions
         elements.btnOpenAddTrade.addEventListener("click", openAddModal);
         elements.btnEmptyAddTrade.addEventListener("click", openAddModal);
         elements.btnCloseTradeModal.addEventListener("click", closeTradeModal);
         elements.btnCancelTrade.addEventListener("click", closeTradeModal);
         elements.tradeForm.addEventListener("submit", handleSaveTrade);
 
-        // Form calculation live triggers
         [
             elements.formEntryPrice, elements.formExitPrice, elements.formStopLoss,
             elements.formTakeProfit, elements.formPositionSize, elements.formLeverage,
@@ -1051,7 +1201,6 @@ document.addEventListener("DOMContentLoaded", () => {
             input.addEventListener("change", updateFormLiveCalculations);
         });
 
-        // Filter events
         let debounceTimer;
         elements.filterSearch.addEventListener("input", () => {
             clearTimeout(debounceTimer);
@@ -1069,26 +1218,22 @@ document.addEventListener("DOMContentLoaded", () => {
             loadTrades();
         });
 
-        // Export CSV button
         elements.btnExportCsv.addEventListener("click", () => {
             window.location.href = "/api/export-csv";
             showToast("Đang tải file CSV về máy...", "success");
         });
 
-        // Refresh button
         elements.btnRefresh.addEventListener("click", async () => {
             showToast("Đang làm mới dữ liệu...", "info");
             await refreshAllData();
             showToast("Dữ liệu đã được cập nhật mới nhất!", "success");
         });
 
-        // Lightbox close
         elements.btnCloseLightbox.addEventListener("click", closeLightbox);
         elements.modalLightbox.addEventListener("click", (e) => {
             if (e.target === elements.modalLightbox) closeLightbox();
         });
 
-        // Calendar Prev / Next / Today
         elements.btnCalPrev.addEventListener("click", () => {
             state.calDate.setMonth(state.calDate.getMonth() - 1);
             renderCalendar();
@@ -1102,14 +1247,11 @@ document.addEventListener("DOMContentLoaded", () => {
             renderCalendar();
         });
 
-        // Global Keyboard Shortcuts
         window.addEventListener("keydown", (e) => {
-            // Ctrl + N: Thêm lệnh mới
             if (e.ctrlKey && e.key.toLowerCase() === "n") {
                 e.preventDefault();
                 openAddModal();
             }
-            // Esc: Đóng modal / lightbox
             if (e.key === "Escape") {
                 if (elements.modalLightbox.classList.contains("active")) {
                     closeLightbox();
@@ -1119,10 +1261,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
-        // Dropzone & Clipboard setup
         setupDropzone();
     }
 
-    // Launch App
     initApp();
 });
