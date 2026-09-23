@@ -1395,6 +1395,22 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.btnCloseTradeModal.addEventListener("click", closeTradeModal);
         elements.btnCancelTrade.addEventListener("click", closeTradeModal);
 
+        // Symbol Pick Buttons (BTC vs XAU)
+        document.querySelectorAll(".symbol-pick-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".symbol-pick-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                const sym = btn.getAttribute("data-symbol");
+                if (elements.formSymbol) elements.formSymbol.value = sym;
+                if (sym.includes("XAU")) {
+                    if (elements.formMarketType) elements.formMarketType.value = "Forex / CFD";
+                } else {
+                    if (elements.formMarketType) elements.formMarketType.value = "Futures";
+                }
+                if (elements.formSymbol) elements.formSymbol.dispatchEvent(new Event("input"));
+            });
+        });
+
         // Quick Symbol Chips & Categorized Select Wiring
         const formSymbolSelectEl = document.getElementById("form-symbol-select");
         if (formSymbolSelectEl) {
@@ -1598,19 +1614,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initApp();
 });
-
-
-        // Symbol Pick Buttons (BTC vs XAU)
-        document.querySelectorAll(".symbol-pick-btn").forEach(btn => {
-            btn.addEventListener("click", () => {
-                document.querySelectorAll(".symbol-pick-btn").forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                const sym = btn.getAttribute("data-symbol");
-                elements.formSymbol.value = sym;
-                if (sym.includes("XAU")) {
-                    elements.formMarketType.value = "Forex / CFD";
-                } else {
-                    elements.formMarketType.value = "Futures";
-                }
-            });
-        });

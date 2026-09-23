@@ -410,6 +410,14 @@ def export_csv():
     return jsonify({"error": "Không thể xuất file CSV"}), 500
 
 
+
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"🚀 Web Crypto Trading Journal Multi-User đang chạy tại: http://localhost:{port}")
