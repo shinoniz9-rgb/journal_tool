@@ -540,93 +540,99 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderBreakdowns(stats) {
         // Strategy
         const stratContainer = document.getElementById("strategy-breakdown-list");
-        stratContainer.innerHTML = "";
-        const strats = stats.strategy_stats || {};
-        const stratKeys = Object.keys(strats);
+        if (stratContainer) {
+            stratContainer.innerHTML = "";
+            const strats = stats.strategy_stats || {};
+            const stratKeys = Object.keys(strats);
 
-        if (stratKeys.length === 0) {
-            stratContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu chiến lược</div>';
-        } else {
-            stratKeys.sort((a, b) => (strats[b].pnl || 0) - (strats[a].pnl || 0));
-            stratKeys.forEach(name => {
-                const item = strats[name];
-                const pnl = item.pnl || 0;
-                const wr = item.win_rate || 0;
-                const el = document.createElement("div");
-                el.className = "breakdown-item";
-                el.innerHTML = `
-                    <div class="breakdown-item-header">
-                        <span class="breakdown-name">${name} (${item.count} lệnh)</span>
-                        <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
-                            ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
-                        </span>
-                    </div>
-                    <div class="breakdown-bar-bg">
-                        <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%;"></div>
-                    </div>
-                `;
-                stratContainer.appendChild(el);
-            });
+            if (stratKeys.length === 0) {
+                stratContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu chiến lược</div>';
+            } else {
+                stratKeys.sort((a, b) => (strats[b].pnl || 0) - (strats[a].pnl || 0));
+                stratKeys.forEach(name => {
+                    const item = strats[name];
+                    const pnl = item.pnl || 0;
+                    const wr = item.win_rate || 0;
+                    const el = document.createElement("div");
+                    el.className = "breakdown-item";
+                    el.innerHTML = `
+                        <div class="breakdown-item-header">
+                            <span class="breakdown-name">${name} (${item.count} lệnh)</span>
+                            <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
+                                ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
+                            </span>
+                        </div>
+                        <div class="breakdown-bar-bg">
+                            <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%;"></div>
+                        </div>
+                    `;
+                    stratContainer.appendChild(el);
+                });
+            }
         }
 
         // Emotion
         const emoContainer = document.getElementById("emotion-breakdown-list");
-        emoContainer.innerHTML = "";
-        const emos = stats.emotion_stats || {};
-        const emoKeys = Object.keys(emos);
+        if (emoContainer) {
+            emoContainer.innerHTML = "";
+            const emos = stats.emotion_stats || {};
+            const emoKeys = Object.keys(emos);
 
-        if (emoKeys.length === 0) {
-            emoContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu tâm lý</div>';
-        } else {
-            emoKeys.forEach(name => {
-                const item = emos[name];
-                const pnl = item.pnl || 0;
-                const wr = item.win_rate || 0;
-                const el = document.createElement("div");
-                el.className = "breakdown-item";
-                el.innerHTML = `
-                    <div class="breakdown-item-header">
-                        <span class="breakdown-name">${name} (${item.count} lệnh)</span>
-                        <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
-                            ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
-                        </span>
-                    </div>
-                    <div class="breakdown-bar-bg">
-                        <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%; background: ${pnl >= 0 ? 'var(--win-green)' : 'var(--loss-red)'};"></div>
-                    </div>
-                `;
-                emoContainer.appendChild(el);
-            });
+            if (emoKeys.length === 0) {
+                emoContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu tâm lý</div>';
+            } else {
+                emoKeys.forEach(name => {
+                    const item = emos[name];
+                    const pnl = item.pnl || 0;
+                    const wr = item.win_rate || 0;
+                    const el = document.createElement("div");
+                    el.className = "breakdown-item";
+                    el.innerHTML = `
+                        <div class="breakdown-item-header">
+                            <span class="breakdown-name">${name} (${item.count} lệnh)</span>
+                            <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
+                                ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
+                            </span>
+                        </div>
+                        <div class="breakdown-bar-bg">
+                            <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%; background: ${pnl >= 0 ? 'var(--win-green)' : 'var(--loss-red)'};"></div>
+                        </div>
+                    `;
+                    emoContainer.appendChild(el);
+                });
+            }
         }
 
         // Symbol
         const symContainer = document.getElementById("symbol-breakdown-list");
-        symContainer.innerHTML = "";
-        const syms = stats.symbol_stats || {};
-        const symKeys = Object.keys(syms);
+        if (symContainer) {
+            symContainer.innerHTML = "";
+            const syms = stats.symbol_stats || {};
+            const symKeys = Object.keys(syms);
 
-        if (symKeys.length === 0) {
-            symContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu cặp tiền</div>';
-        } else {
-            symKeys.forEach(name => {
-                const item = syms[name];
-                const pnl = item.pnl || 0;
-                const wr = item.win_rate || 0;
-                const el = document.createElement("div");
-                el.className = "breakdown-item";
-                el.innerHTML = `
-                    <div class="breakdown-item-header">
-                        <span class="breakdown-name font-bold">${name} (${item.count} lệnh)</span>
-                        <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
-                            ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
-                        </span>
-                    </div>
-                    <div class="breakdown-bar-bg">
-                        <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%;"></div>
-                    </div>
-                `;
-                symContainer.appendChild(el);
-            });
+            if (symKeys.length === 0) {
+                symContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu cặp tiền</div>';
+            } else {
+                symKeys.forEach(name => {
+                    const item = syms[name];
+                    const pnl = item.pnl || 0;
+                    const wr = item.win_rate || 0;
+                    const el = document.createElement("div");
+                    el.className = "breakdown-item";
+                    el.innerHTML = `
+                        <div class="breakdown-item-header">
+                            <span class="breakdown-name font-bold">${name} (${item.count} lệnh)</span>
+                            <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
+                                ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
+                            </span>
+                        </div>
+                        <div class="breakdown-bar-bg">
+                            <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%;"></div>
+                        </div>
+                    `;
+                    symContainer.appendChild(el);
+                });
+            }
         }
     }
 
@@ -636,11 +642,11 @@ document.addEventListener("DOMContentLoaded", () => {
     async function loadTrades() {
         try {
             const params = new URLSearchParams();
-            if (elements.filterSearch.value.trim()) params.append("search", elements.filterSearch.value.trim());
-            if (elements.filterSymbol.value !== "Tất cả") params.append("symbol", elements.filterSymbol.value);
-            if (elements.filterStatus.value !== "Tất cả") params.append("status", elements.filterStatus.value);
-            if (elements.filterResult.value !== "Tất cả") params.append("result", elements.filterResult.value);
-            if (elements.filterStrategy.value !== "Tất cả") params.append("strategy", elements.filterStrategy.value);
+            if (elements.filterSearch && elements.filterSearch.value.trim()) params.append("search", elements.filterSearch.value.trim());
+            if (elements.filterSymbol && elements.filterSymbol.value !== "Tất cả") params.append("symbol", elements.filterSymbol.value);
+            if (elements.filterStatus && elements.filterStatus.value !== "Tất cả") params.append("status", elements.filterStatus.value);
+            if (elements.filterResult && elements.filterResult.value !== "Tất cả") params.append("result", elements.filterResult.value);
+            if (elements.filterStrategy && elements.filterStrategy.value !== "Tất cả") params.append("strategy", elements.filterStrategy.value);
 
             const res = await fetch(`/api/trades?${params.toString()}`);
             if (res.status === 401) {
@@ -651,11 +657,15 @@ document.addEventListener("DOMContentLoaded", () => {
             state.trades = trades;
 
             renderTradesTable(trades);
-            elements.totalTradesCounter.textContent = trades.length;
+            if (elements.totalTradesCounter) {
+                elements.totalTradesCounter.textContent = trades.length;
+            }
             if (elements.bnavTradeCounter) {
                 elements.bnavTradeCounter.textContent = trades.length;
             }
-            elements.filterStatsLabel.textContent = `Đang hiển thị ${trades.length} lệnh`;
+            if (elements.filterStatsLabel) {
+                elements.filterStatsLabel.textContent = `Đang hiển thị ${trades.length} lệnh`;
+            }
         } catch (err) {
             console.error("Lỗi nạp danh sách lệnh:", err);
         }
@@ -1550,21 +1560,25 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         let debounceTimer;
-        elements.filterSearch.addEventListener("input", () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(loadTrades, 300);
-        });
-        [elements.filterSymbol, elements.filterStatus, elements.filterResult, elements.filterStrategy].forEach(select => {
+        if (elements.filterSearch) {
+            elements.filterSearch.addEventListener("input", () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(loadTrades, 300);
+            });
+        }
+        [elements.filterSymbol, elements.filterStatus, elements.filterResult, elements.filterStrategy].filter(Boolean).forEach(select => {
             select.addEventListener("change", loadTrades);
         });
-        elements.btnResetFilters.addEventListener("click", () => {
-            elements.filterSearch.value = "";
-            elements.filterSymbol.value = "Tất cả";
-            elements.filterStatus.value = "Tất cả";
-            elements.filterResult.value = "Tất cả";
-            elements.filterStrategy.value = "Tất cả";
-            loadTrades();
-        });
+        if (elements.btnResetFilters) {
+            elements.btnResetFilters.addEventListener("click", () => {
+                if (elements.filterSearch) elements.filterSearch.value = "";
+                if (elements.filterSymbol) elements.filterSymbol.value = "Tất cả";
+                if (elements.filterStatus) elements.filterStatus.value = "Tất cả";
+                if (elements.filterResult) elements.filterResult.value = "Tất cả";
+                if (elements.filterStrategy) elements.filterStrategy.value = "Tất cả";
+                loadTrades();
+            });
+        }
 
         elements.btnExportCsv.addEventListener("click", () => {
             window.location.href = "/api/export-csv";
