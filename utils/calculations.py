@@ -10,12 +10,14 @@ def calculate_trade_metrics(
     exit_price: float | None,
     stop_loss: float | None,
     take_profit: float | None,
-    position_size: float,
+    position_size: float = 0.0,
     leverage: int = 1,
-    fees: float = 0.0
+    fees: float = 0.0,
+    risk_amount: float = 0.0
 ) -> Dict[str, float]:
     """
     Tính toán PnL, ROI %, Planned R:R, Realized R:R cho một lệnh giao dịch.
+    Hỗ trợ cơ chế Risk-Based (tính theo số tiền stoploss rủi ro $).
     """
     metrics = {
         "pnl": 0.0,
@@ -24,52 +26,59 @@ def calculate_trade_metrics(
         "realized_rr": 0.0,
     }
 
-    if entry_price <= 0 or position_size <= 0:
+    if entry_price <= 0:
         return metrics
 
     is_long = trade_type.strip().lower() == "long"
 
     # 1. Tính Planned R:R (Nếu có SL và TP)
-    if stop_loss and stop_loss > 0 and take_profit and take_profit > 0:
+    risk_distance = 0.0
+    if stop_loss and stop_loss > 0:
         if is_long:
-            risk = entry_price - stop_loss
-            reward = take_profit - entry_price
+            risk_distance = entry_price - stop_loss
         else:
-            risk = stop_loss - entry_price
-            reward = entry_price - take_profit
+            risk_distance = stop_loss - entry_price
 
-        if risk > 0 and reward > 0:
-            metrics["planned_rr"] = round(reward / risk, 2)
+    if risk_distance > 0 and take_profit and take_profit > 0:
+        reward_distance = (take_profit - entry_price) if is_long else (entry_price - take_profit)
+        if reward_distance > 0:
+            metrics["planned_rr"] = round(reward_distance / risk_distance, 2)
 
-    # 2. Tính PnL và Realized R:R (Nếu lệnh đã có giá đóng)
+    # 2. Tính PnL và Realized R:R (Nếu lệnh đã có giá đóng exit_price)
     if exit_price and exit_price > 0:
-        if is_long:
-            price_change_ratio = (exit_price - entry_price) / entry_price
-            raw_pnl = price_change_ratio * (position_size * leverage)
-            if stop_loss and stop_loss > 0:
-                risk = entry_price - stop_loss
-                realized_diff = exit_price - entry_price
-                if risk > 0:
-                    metrics["realized_rr"] = round(realized_diff / risk, 2)
-        else:
-            price_change_ratio = (entry_price - exit_price) / entry_price
-            raw_pnl = price_change_ratio * (position_size * leverage)
-            if stop_loss and stop_loss > 0:
-                risk = stop_loss - entry_price
-                realized_diff = entry_price - exit_price
-                if risk > 0:
-                    metrics["realized_rr"] = round(realized_diff / risk, 2)
+        # Tính Realized R:R nếu có khoảng cách SL hợp lệ
+        if risk_distance > 0:
+            realized_diff = (exit_price - entry_price) if is_long else (entry_price - exit_price)
+            metrics["realized_rr"] = round(realized_diff / risk_distance, 2)
 
-        net_pnl = raw_pnl - fees
-        metrics["pnl"] = round(net_pnl, 2)
-        metrics["pnl_percent"] = round((net_pnl / position_size) * 100, 2)
+        # CƠ CHẾ 1: TÍNH THEO SỐ TIỀN RỦI RO STOPLOSS (RISK AMOUNT $)
+        # "khi đặt entry và giá stoploss thì sẽ mất số tiền bao nhiêu đó, lãi lỗ tp cũng tính từ số tiền mất cho stoploss để tính"
+        if risk_amount and risk_amount > 0 and risk_distance > 0:
+            realized_diff = (exit_price - entry_price) if is_long else (entry_price - exit_price)
+            realized_r = realized_diff / risk_distance
+            raw_pnl = realized_r * risk_amount
+            net_pnl = raw_pnl - fees
+            metrics["pnl"] = round(net_pnl, 2)
+            metrics["pnl_percent"] = round((net_pnl / risk_amount) * 100, 2)
+        else:
+            # CƠ CHẾ 2: DỰ PHÒNG THEO POSITION SIZE & ĐÒN BẨY
+            effective_pos = position_size if position_size > 0 else 100.0
+            if is_long:
+                price_change_ratio = (exit_price - entry_price) / entry_price
+            else:
+                price_change_ratio = (entry_price - exit_price) / entry_price
+            raw_pnl = price_change_ratio * (effective_pos * leverage)
+            net_pnl = raw_pnl - fees
+            metrics["pnl"] = round(net_pnl, 2)
+            metrics["pnl_percent"] = round((net_pnl / effective_pos) * 100, 2)
 
     return metrics
 
 
-def calculate_portfolio_statistics(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+def calculate_portfolio_statistics(trades: List[Dict[str, Any]], initial_capital: float = 1000.0) -> Dict[str, Any]:
     """
     Tổng hợp toàn diện các chỉ số thống kê hiệu suất giao dịch (KPIs)
+    kèm theo số vốn ban đầu và vốn hiện tại sau lãi / lỗ.
     """
     total_trades = len(trades)
     closed_trades = [t for t in trades if t.get("status") == "Closed"]
@@ -77,6 +86,9 @@ def calculate_portfolio_statistics(trades: List[Dict[str, Any]]) -> Dict[str, An
 
     if not closed_trades:
         return {
+            "initial_capital": round(initial_capital, 2),
+            "current_capital": round(initial_capital, 2),
+            "capital_growth_percent": 0.0,
             "total_trades": total_trades,
             "closed_trades_count": 0,
             "open_trades_count": len(open_trades),
@@ -218,9 +230,13 @@ def calculate_portfolio_statistics(trades: List[Dict[str, Any]]) -> Dict[str, An
 
     for sym, data in symbol_stats.items():
         data["win_rate"] = round((data["wins"] / data["count"]) * 100, 1) if data["count"] > 0 else 0.0
-        data["pnl"] = round(data["pnl"], 2)
+    current_capital = round(initial_capital + net_pnl, 2)
+    capital_growth_percent = round(((net_pnl) / initial_capital) * 100, 2) if initial_capital > 0 else 0.0
 
     return {
+        "initial_capital": round(initial_capital, 2),
+        "current_capital": current_capital,
+        "capital_growth_percent": capital_growth_percent,
         "total_trades": total_trades,
         "closed_trades_count": total_closed,
         "open_trades_count": len(open_trades),

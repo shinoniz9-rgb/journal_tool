@@ -31,6 +31,7 @@ class DatabaseManager:
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 display_name TEXT,
+                initial_capital REAL DEFAULT 1000.0,
                 created_at TEXT NOT NULL
             );
             """)
@@ -53,6 +54,7 @@ class DatabaseManager:
                 take_profit REAL,
                 leverage INTEGER DEFAULT 1,
                 position_size REAL NOT NULL,
+                risk_amount REAL DEFAULT 0.0,
                 fees REAL DEFAULT 0.0,
                 pnl REAL DEFAULT 0.0,
                 pnl_percent REAL DEFAULT 0.0,
@@ -69,12 +71,26 @@ class DatabaseManager:
             );
             """)
 
-            # 3. Migration: Kiểm tra và bổ sung cột user_id nếu bảng trades đã tồn tại từ trước
+            # 3. Migration: Kiểm tra và bổ sung cột user_id, risk_amount nếu bảng trades đã tồn tại từ trước
             cursor.execute("PRAGMA table_info(trades)")
-            columns = [col[1] for col in cursor.fetchall()]
-            if "user_id" not in columns:
+            trade_columns = [col[1] for col in cursor.fetchall()]
+            if "user_id" not in trade_columns:
                 try:
                     cursor.execute("ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT 1;")
+                except Exception:
+                    pass
+            if "risk_amount" not in trade_columns:
+                try:
+                    cursor.execute("ALTER TABLE trades ADD COLUMN risk_amount REAL DEFAULT 0.0;")
+                except Exception:
+                    pass
+
+            # 4. Migration: Kiểm tra và bổ sung cột initial_capital vào users
+            cursor.execute("PRAGMA table_info(users)")
+            user_columns = [col[1] for col in cursor.fetchall()]
+            if "initial_capital" not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN initial_capital REAL DEFAULT 1000.0;")
                 except Exception:
                     pass
 
@@ -156,10 +172,30 @@ class DatabaseManager:
     def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, username, display_name, created_at FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT id, username, display_name, initial_capital, created_at FROM users WHERE id = ?", (user_id,))
             row = cursor.fetchone()
             return dict(row) if row else None
 
+    def get_user_capital(self, user_id: int) -> float:
+        """Lấy số vốn ban đầu của user, mặc định 1000.0 nếu chưa có"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT initial_capital FROM users WHERE id = ?", (user_id,))
+            row = cursor.fetchone()
+            if row and row["initial_capital"] is not None:
+                try:
+                    return float(row["initial_capital"])
+                except (ValueError, TypeError):
+                    return 1000.0
+            return 1000.0
+
+    def update_user_capital(self, user_id: int, capital: float) -> bool:
+        """Cập nhật số vốn ban đầu của user"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET initial_capital = ? WHERE id = ?", (capital, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
 
     def reset_user_password(self, username: str, new_password: str) -> Dict[str, Any]:
         """Đặt lại mật khẩu cho tài khoản"""
@@ -189,14 +225,14 @@ class DatabaseManager:
             INSERT INTO trades (
                 user_id, symbol, trade_type, market_type, status, timeframe,
                 entry_date, exit_date, entry_price, exit_price,
-                stop_loss, take_profit, leverage, position_size, fees,
+                stop_loss, take_profit, leverage, position_size, risk_amount, fees,
                 pnl, pnl_percent, planned_rr, realized_rr,
                 strategy, emotion, notes, lessons, chart_image_path,
                 created_at, updated_at
             ) VALUES (
                 ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
-                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
                 ?, ?, ?, ?, ?,
                 ?, ?
@@ -216,6 +252,7 @@ class DatabaseManager:
                 float(data.get("take_profit")) if data.get("take_profit") not in (None, "") else None,
                 int(data.get("leverage", 1)),
                 float(data.get("position_size", 0.0)),
+                float(data.get("risk_amount", 0.0)),
                 float(data.get("fees", 0.0)),
                 float(data.get("pnl", 0.0)),
                 float(data.get("pnl_percent", 0.0)),
@@ -240,7 +277,7 @@ class DatabaseManager:
             UPDATE trades SET
                 symbol = ?, trade_type = ?, market_type = ?, status = ?, timeframe = ?,
                 entry_date = ?, exit_date = ?, entry_price = ?, exit_price = ?,
-                stop_loss = ?, take_profit = ?, leverage = ?, position_size = ?, fees = ?,
+                stop_loss = ?, take_profit = ?, leverage = ?, position_size = ?, risk_amount = ?, fees = ?,
                 pnl = ?, pnl_percent = ?, planned_rr = ?, realized_rr = ?,
                 strategy = ?, emotion = ?, notes = ?, lessons = ?, chart_image_path = ?,
                 updated_at = ?
@@ -259,6 +296,7 @@ class DatabaseManager:
                 float(data.get("take_profit")) if data.get("take_profit") not in (None, "") else None,
                 int(data.get("leverage", 1)),
                 float(data.get("position_size", 0.0)),
+                float(data.get("risk_amount", 0.0)),
                 float(data.get("fees", 0.0)),
                 float(data.get("pnl", 0.0)),
                 float(data.get("pnl_percent", 0.0)),

@@ -87,7 +87,43 @@
             <!-- TAB 1: DASHBOARD -->
             <section class="tab-content active" id="view-dashboard">
                 <div class="kpi-grid">
-                    <div class="kpi-card card-glow" id="kpi-net-pnl-card">
+                    <!-- KPI 1: TỔNG VỐN BAN ĐẦU (CHO PHÉP NHẬP / CHỈNH SỬA) -->
+                    <div class="kpi-card card-glow" id="kpi-capital-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">Tổng Vốn Ban Đầu</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button type="button" class="btn-icon-tiny" id="btn-edit-capital" title="Nhấp để thay đổi số vốn ban đầu">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                </button>
+                                <span class="kpi-icon">💼</span>
+                            </div>
+                        </div>
+                        <div id="capital-display-view">
+                            <div class="kpi-value text-accent" id="kpi-initial-capital">$1,000.00</div>
+                            <div class="kpi-subtext" style="cursor: pointer;" id="btn-quick-edit-capital">Nhấp ✏️ để cập nhật vốn</div>
+                        </div>
+                        <div id="capital-edit-view" style="display: none; margin-top: 6px;">
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <input type="number" step="any" id="input-initial-capital" class="form-control mono font-bold" placeholder="Nhập số vốn ($)" style="padding: 6px 10px; font-size: 15px; height: 36px;">
+                                <button type="button" class="btn btn-primary" id="btn-save-capital" style="padding: 6px 12px; height: 36px; font-size: 13px;">Lưu</button>
+                                <button type="button" class="btn btn-ghost" id="btn-cancel-capital" style="padding: 6px 8px; height: 36px; font-size: 13px;">✕</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI 2: VỐN CÒN LẠI (HIỆN TẠI) = VỐN BAN ĐẦU + NET PNL -->
+                    <div class="kpi-card card-glow" id="kpi-current-capital-card">
+                        <div class="kpi-header">
+                            <span class="kpi-label">Vốn Còn Lại (Hiện Tại)</span>
+                            <span class="kpi-icon">💎</span>
+                        </div>
+                        <div class="kpi-value font-bold" id="kpi-current-capital">$1,000.00</div>
+                        <div class="kpi-subtext" id="kpi-capital-growth-wrapper">
+                            Tăng trưởng: <span class="text-win font-bold" id="kpi-capital-growth">+0.00%</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card" id="kpi-net-pnl-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Tổng Net PnL</span>
                             <span class="kpi-icon" id="kpi-pnl-icon">💰</span>
@@ -486,13 +522,32 @@
 
                     <div class="form-row form-grid-2">
                         <div class="form-group">
-                            <label for="form-stop-loss" class="form-label">Stop Loss (Cắt lỗ)</label>
+                            <label for="form-stop-loss" class="form-label">Stop Loss (Giá Cắt Lỗ)</label>
                             <input type="number" step="any" id="form-stop-loss" class="form-control mono text-loss" placeholder="0.00" inputmode="decimal">
                         </div>
 
                         <div class="form-group">
-                            <label for="form-take-profit" class="form-label">Take Profit (Chốt lời)</label>
+                            <label for="form-take-profit" class="form-label">Take Profit (Giá Chốt Lời)</label>
                             <input type="number" step="any" id="form-take-profit" class="form-control mono text-win" placeholder="0.00" inputmode="decimal">
+                        </div>
+                    </div>
+
+                    <!-- SỐ TIỀN CẮT LỖ (RISK AMOUNT $) VÀ LỢI NHUẬN DỰ KIẾN TP -->
+                    <div class="form-row form-grid-2">
+                        <div class="form-group">
+                            <label for="form-risk-amount" class="form-label font-bold text-accent" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Số Tiền Cắt Lỗ ($)</span>
+                                <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">Mất nếu dính SL</span>
+                            </label>
+                            <input type="number" step="any" id="form-risk-amount" class="form-control mono text-loss font-bold" placeholder="vd: 20 ($)" inputmode="decimal">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-planned-reward" class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Tiền Lời Dự Kiến Tại TP ($)</span>
+                                <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">Lãi nếu dính TP</span>
+                            </label>
+                            <input type="text" id="form-planned-reward" class="form-control mono text-win font-bold" placeholder="$0.00" readonly style="background: rgba(255,255,255,0.03); cursor: default;">
                         </div>
                     </div>
 
@@ -506,6 +561,14 @@
                             <div class="live-item">
                                 <span class="live-item-label">Planned R:R:</span>
                                 <span class="live-item-val font-bold" id="live-planned-rr">0.00</span>
+                            </div>
+                            <div class="live-item">
+                                <span class="live-item-label">Mất Nếu Dính SL:</span>
+                                <span class="live-item-val font-bold text-loss" id="live-risk-val">-$0.00</span>
+                            </div>
+                            <div class="live-item">
+                                <span class="live-item-label">Lãi Nếu Dính TP:</span>
+                                <span class="live-item-val font-bold text-win" id="live-reward-val">+$0.00</span>
                             </div>
                             <div class="live-item">
                                 <span class="live-item-label">Realized R:R:</span>
@@ -592,6 +655,6 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/app.js?v=20260923_v6"></script>
+    <script src="/static/js/app.js?v=20260923_v8"></script>
 </body>
 </html>

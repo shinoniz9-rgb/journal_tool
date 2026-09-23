@@ -93,6 +93,8 @@ document.addEventListener("DOMContentLoaded", () => {
         formEntryPrice: document.getElementById("form-entry-price"),
         formStopLoss: document.getElementById("form-stop-loss"),
         formTakeProfit: document.getElementById("form-take-profit"),
+        formRiskAmount: document.getElementById("form-risk-amount"),
+        formPlannedReward: document.getElementById("form-planned-reward"),
         formExitPrice: document.getElementById("form-exit-price"),
         formPositionSize: document.getElementById("form-position-size"),
         formFees: document.getElementById("form-fees"),
@@ -102,9 +104,23 @@ document.addEventListener("DOMContentLoaded", () => {
         formLessons: document.getElementById("form-lessons"),
         formChartPath: document.getElementById("form-chart-path"),
 
+        // Capital Management elements
+        kpiInitialCapital: document.getElementById("kpi-initial-capital"),
+        kpiCurrentCapital: document.getElementById("kpi-current-capital"),
+        kpiCapitalGrowth: document.getElementById("kpi-capital-growth"),
+        btnEditCapital: document.getElementById("btn-edit-capital"),
+        btnQuickEditCapital: document.getElementById("btn-quick-edit-capital"),
+        capitalDisplayView: document.getElementById("capital-display-view"),
+        capitalEditView: document.getElementById("capital-edit-view"),
+        inputInitialCapital: document.getElementById("input-initial-capital"),
+        btnSaveCapital: document.getElementById("btn-save-capital"),
+        btnCancelCapital: document.getElementById("btn-cancel-capital"),
+
         // Live calculation elements
         livePlannedRr: document.getElementById("live-planned-rr"),
         liveRealizedRr: document.getElementById("live-realized-rr"),
+        liveRiskVal: document.getElementById("live-risk-val"),
+        liveRewardVal: document.getElementById("live-reward-val"),
         livePnl: document.getElementById("live-pnl"),
         liveRoi: document.getElementById("live-roi"),
 
@@ -481,6 +497,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderKpiCards(stats) {
+        // 1. Quản lý Vốn (Tổng vốn ban đầu & Vốn còn lại)
+        const initialCap = stats.initial_capital !== undefined ? Number(stats.initial_capital) : 1000.0;
+        const currentCap = stats.current_capital !== undefined ? Number(stats.current_capital) : (initialCap + (stats.net_pnl || 0));
+        const growthPct = stats.capital_growth_percent !== undefined ? Number(stats.capital_growth_percent) : (initialCap > 0 ? (((stats.net_pnl || 0)) / initialCap) * 100 : 0);
+
+        if (elements.kpiInitialCapital) {
+            elements.kpiInitialCapital.textContent = `$${initialCap.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        if (elements.kpiCurrentCapital) {
+            elements.kpiCurrentCapital.textContent = `$${currentCap.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            elements.kpiCurrentCapital.className = `kpi-value font-bold ${currentCap > initialCap ? "text-win" : currentCap < initialCap ? "text-loss" : "text-be"}`;
+        }
+        if (elements.kpiCapitalGrowth) {
+            elements.kpiCapitalGrowth.textContent = `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(2)}%`;
+            elements.kpiCapitalGrowth.className = `font-bold ${growthPct > 0 ? "text-win" : growthPct < 0 ? "text-loss" : "text-be"}`;
+        }
+
+        // 2. Net PnL và Win Rate
         const pnlEl = document.getElementById("kpi-net-pnl");
         const pnlVal = stats.net_pnl || 0;
         pnlEl.textContent = `${pnlVal >= 0 ? "+" : ""}$${pnlVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -512,6 +546,50 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-avg-rr").textContent = `1 : ${(stats.avg_rr || 0).toFixed(2)}`;
         document.getElementById("kpi-max-wins").textContent = `${stats.max_consecutive_wins || 0}W`;
         document.getElementById("kpi-max-losses").textContent = `${stats.max_consecutive_losses || 0}L`;
+    }
+
+    function showCapitalEditMode() {
+        if (!elements.capitalDisplayView || !elements.capitalEditView) return;
+        const currentVal = state.stats && state.stats.initial_capital ? state.stats.initial_capital : 1000;
+        elements.inputInitialCapital.value = currentVal;
+        elements.capitalDisplayView.style.display = "none";
+        elements.capitalEditView.style.display = "block";
+        elements.inputInitialCapital.focus();
+        elements.inputInitialCapital.select();
+    }
+
+    function hideCapitalEditMode() {
+        if (!elements.capitalDisplayView || !elements.capitalEditView) return;
+        elements.capitalEditView.style.display = "none";
+        elements.capitalDisplayView.style.display = "block";
+    }
+
+    async function handleSaveCapital() {
+        const newCapital = parseFloat(elements.inputInitialCapital.value);
+        if (isNaN(newCapital) || newCapital < 0) {
+            showToast("Vui lòng nhập số vốn hợp lệ (>= 0)!", "error");
+            return;
+        }
+        try {
+            elements.btnSaveCapital.disabled = true;
+            elements.btnSaveCapital.textContent = "...";
+            const res = await authFetch("/api/user/capital", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ initial_capital: newCapital })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Không thể lưu số vốn");
+
+            showToast("Đã cập nhật số vốn ban đầu thành công!", "success");
+            hideCapitalEditMode();
+            await loadStats();
+        } catch (err) {
+            showToast(err.message, "error");
+        } finally {
+            elements.btnSaveCapital.disabled = false;
+            elements.btnSaveCapital.textContent = "Lưu";
+        }
     }
 
     function renderEquityChart(curveData) {
@@ -1043,6 +1121,9 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.formLeverage.value = "10";
         elements.formMarketType.value = "Futures";
         elements.formSymbol.value = "BTC/USDT";
+        if (elements.formRiskAmount) elements.formRiskAmount.value = "";
+        if (elements.formPlannedReward) elements.formPlannedReward.value = "$0.00";
+
         document.querySelectorAll(".symbol-pick-btn").forEach(b => {
             if (b.getAttribute("data-symbol") === "BTC/USDT") b.classList.add("active");
             else b.classList.remove("active");
@@ -1103,6 +1184,10 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.formPositionSize.value = trade.position_size || "";
             elements.formFees.value = trade.fees || 0;
 
+            if (elements.formRiskAmount) {
+                elements.formRiskAmount.value = (trade.risk_amount && trade.risk_amount > 0) ? trade.risk_amount : "";
+            }
+
             elements.formStrategy.value = trade.strategy || "";
             elements.formEmotion.value = trade.emotion || "";
             elements.formNotes.value = trade.notes || "";
@@ -1119,7 +1204,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             updateFormLiveCalculations();
             document.body.classList.add("modal-open");
-        elements.modalTradeForm.classList.add("active");
+            elements.modalTradeForm.classList.add("active");
 
         } catch (err) {
             showToast(err.message, "error");
@@ -1147,6 +1232,7 @@ document.addEventListener("DOMContentLoaded", () => {
             entry_price: parseFloat(elements.formEntryPrice.value) || 0,
             stop_loss: elements.formStopLoss.value ? parseFloat(elements.formStopLoss.value) : null,
             take_profit: elements.formTakeProfit.value ? parseFloat(elements.formTakeProfit.value) : null,
+            risk_amount: (elements.formRiskAmount && elements.formRiskAmount.value) ? (parseFloat(elements.formRiskAmount.value) || 0) : 0,
             exit_price: elements.formExitPrice.value ? parseFloat(elements.formExitPrice.value) : null,
             position_size: parseFloat(elements.formPositionSize.value) || 100,
             fees: parseFloat(elements.formFees.value) || 0,
@@ -1206,40 +1292,72 @@ document.addEventListener("DOMContentLoaded", () => {
         const exit = parseFloat(elements.formExitPrice.value) || null;
         const sl = parseFloat(elements.formStopLoss.value) || null;
         const tp = parseFloat(elements.formTakeProfit.value) || null;
+        const riskAmount = (elements.formRiskAmount && elements.formRiskAmount.value) ? (parseFloat(elements.formRiskAmount.value) || 0) : 0;
         const margin = parseFloat(elements.formPositionSize.value) || 100;
         const lev = parseInt(elements.formLeverage.value) || 1;
         const fees = parseFloat(elements.formFees.value) || 0;
 
         let plannedRr = 0;
+        let plannedReward = 0;
         let realizedRr = 0;
         let pnl = 0;
         let roi = 0;
 
-        if (entry > 0 && sl && tp) {
-            let risk = isLong ? (entry - sl) : (sl - entry);
-            let reward = isLong ? (tp - entry) : (entry - tp);
-            if (risk > 0 && reward > 0) {
-                plannedRr = reward / risk;
-            }
+        let riskDistance = 0;
+        if (entry > 0 && sl && sl > 0) {
+            riskDistance = isLong ? (entry - sl) : (sl - entry);
         }
 
-        if (entry > 0 && exit && exit > 0 && margin > 0) {
-            let priceChangeRatio = isLong ? (exit - entry) / entry : (entry - exit) / entry;
-            let rawPnl = priceChangeRatio * (margin * lev);
-            pnl = rawPnl - fees;
-            roi = (pnl / margin) * 100;
-
-            if (sl && sl > 0) {
-                let risk = isLong ? (entry - sl) : (sl - entry);
-                let realizedDiff = isLong ? (exit - entry) : (entry - exit);
-                if (risk > 0) {
-                    realizedRr = realizedDiff / risk;
+        if (riskDistance > 0 && tp && tp > 0) {
+            let rewardDistance = isLong ? (tp - entry) : (entry - tp);
+            if (rewardDistance > 0) {
+                plannedRr = rewardDistance / riskDistance;
+                if (riskAmount > 0) {
+                    plannedReward = plannedRr * riskAmount;
                 }
             }
         }
 
+        // Cập nhật ô hiển thị lợi nhuận dự kiến tại TP
+        if (elements.formPlannedReward) {
+            if (plannedReward > 0) {
+                elements.formPlannedReward.value = `+$${plannedReward.toFixed(2)}`;
+            } else {
+                elements.formPlannedReward.value = "$0.00";
+            }
+        }
+
+        // Cập nhật ô số tiền mất nếu dính SL và lãi nếu TP trong Live Calc Grid
+        if (elements.liveRiskVal) {
+            elements.liveRiskVal.textContent = riskAmount > 0 ? `-$${riskAmount.toFixed(2)}` : "-";
+        }
+        if (elements.liveRewardVal) {
+            elements.liveRewardVal.textContent = plannedReward > 0 ? `+$${plannedReward.toFixed(2)}` : "-";
+        }
+
+        // Tính toán Realized R:R và Lợi Nhuận Net (khi đã có giá thoát)
+        if (entry > 0 && exit && exit > 0) {
+            if (riskDistance > 0) {
+                let realizedDiff = isLong ? (exit - entry) : (entry - exit);
+                realizedRr = realizedDiff / riskDistance;
+            }
+
+            // CƠ CHẾ CHÍNH: TÍNH THEO SỐ TIỀN MẤT CHO STOPLOSS (RISK AMOUNT $)
+            if (riskAmount > 0 && riskDistance > 0) {
+                let rawPnl = realizedRr * riskAmount;
+                pnl = rawPnl - fees;
+                roi = (pnl / riskAmount) * 100;
+            } else if (margin > 0) {
+                // Cơ chế dự phòng: Theo Margin & Đòn bẩy
+                let priceChangeRatio = isLong ? (exit - entry) / entry : (entry - exit) / entry;
+                let rawPnl = priceChangeRatio * (margin * lev);
+                pnl = rawPnl - fees;
+                roi = (pnl / margin) * 100;
+            }
+        }
+
         elements.livePlannedRr.textContent = plannedRr > 0 ? `1 : ${plannedRr.toFixed(2)}` : "-";
-        elements.liveRealizedRr.textContent = realizedRr !== 0 ? `1 : ${realizedRr.toFixed(2)}` : "-";
+        elements.liveRealizedRr.textContent = (exit && exit > 0 && realizedRr !== 0) ? `${realizedRr >= 0 ? '+' : ''}${realizedRr.toFixed(2)}R` : "-";
         
         const pnlEl = elements.livePnl;
         const roiEl = elements.liveRoi;
@@ -1247,8 +1365,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (exit && exit > 0) {
             pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
             roiEl.textContent = `${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%`;
-            pnlEl.className = `live-item-val font-bold ${pnl >= 0 ? 'text-win' : 'text-loss'}`;
-            roiEl.className = `live-item-val font-bold ${roi >= 0 ? 'text-win' : 'text-loss'}`;
+            pnlEl.className = `live-item-val font-bold ${pnl > 0 ? 'text-win' : pnl < 0 ? 'text-loss' : 'text-be'}`;
+            roiEl.className = `live-item-val font-bold ${roi > 0 ? 'text-win' : roi < 0 ? 'text-loss' : 'text-be'}`;
         } else {
             pnlEl.textContent = "$0.00";
             roiEl.textContent = "0.00%";
@@ -1618,14 +1736,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
         elements.tradeForm.addEventListener("submit", handleSaveTrade);
 
+        // Lắng nghe thay đổi các trường giá và số tiền rủi ro trong form
         [
             elements.formEntryPrice, elements.formExitPrice, elements.formStopLoss,
-            elements.formTakeProfit, elements.formPositionSize, elements.formLeverage,
+            elements.formTakeProfit, elements.formRiskAmount, elements.formPositionSize, elements.formLeverage,
             elements.formFees, elements.typeLong, elements.typeShort
-        ].forEach(input => {
+        ].filter(Boolean).forEach(input => {
             input.addEventListener("input", updateFormLiveCalculations);
             input.addEventListener("change", updateFormLiveCalculations);
         });
+
+        // Lắng nghe sự kiện chỉnh sửa số vốn ban đầu (Dashboard Capital)
+        if (elements.btnEditCapital) {
+            elements.btnEditCapital.addEventListener("click", showCapitalEditMode);
+        }
+        if (elements.btnQuickEditCapital) {
+            elements.btnQuickEditCapital.addEventListener("click", showCapitalEditMode);
+        }
+        if (elements.btnCancelCapital) {
+            elements.btnCancelCapital.addEventListener("click", hideCapitalEditMode);
+        }
+        if (elements.btnSaveCapital) {
+            elements.btnSaveCapital.addEventListener("click", handleSaveCapital);
+        }
+        if (elements.inputInitialCapital) {
+            elements.inputInitialCapital.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSaveCapital();
+                } else if (e.key === "Escape") {
+                    hideCapitalEditMode();
+                }
+            });
+        }
 
         let debounceTimer;
         if (elements.filterSearch) {

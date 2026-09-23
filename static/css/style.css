@@ -375,6 +375,25 @@ body {
     color: var(--text-muted);
 }
 
+.btn-icon-tiny {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    padding: 3px 5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-fast);
+}
+
+.btn-icon-tiny:hover {
+    background: rgba(0, 245, 155, 0.15);
+    border-color: var(--win-green);
+    color: var(--win-green);
+}
+
 .card-glow {
     box-shadow: 0 0 20px rgba(0, 245, 155, 0.08);
 }

@@ -243,12 +243,32 @@ def get_config():
 # CÁC API THỐNG KÊ & BÁO CÁO (THEO USER)
 # ==========================================
 
+@app.route("/api/user/capital", methods=["GET", "POST"])
+@login_required
+def user_capital():
+    user_id = get_current_user_id()
+    if request.method == "POST":
+        data = request.json or {}
+        try:
+            capital = float(data.get("initial_capital", 1000.0))
+            if capital < 0:
+                return jsonify({"error": "Số vốn không thể là số âm"}), 400
+            db.update_user_capital(user_id=user_id, capital=capital)
+            return jsonify({"success": True, "initial_capital": capital, "message": "Cập nhật vốn ban đầu thành công!"})
+        except (ValueError, TypeError):
+            return jsonify({"error": "Số vốn không hợp lệ"}), 400
+    else:
+        capital = db.get_user_capital(user_id=user_id)
+        return jsonify({"initial_capital": capital})
+
+
 @app.route("/api/stats", methods=["GET"])
 @login_required
 def get_stats():
     user_id = get_current_user_id()
     trades = db.get_all_trades(user_id=user_id, order_desc=False)
-    stats = calculate_portfolio_statistics(trades)
+    initial_capital = db.get_user_capital(user_id=user_id)
+    stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
     return jsonify(stats)
 
 
@@ -297,6 +317,7 @@ def add_trade():
         stop_loss = float(data["stop_loss"]) if data.get("stop_loss") not in (None, "") else None
         take_profit = float(data["take_profit"]) if data.get("take_profit") not in (None, "") else None
         pos_size = float(data.get("position_size", 0))
+        risk_amount = float(data.get("risk_amount", 0))
         leverage = int(data.get("leverage", 1))
         fees = float(data.get("fees", 0))
         trade_type = str(data.get("trade_type", "Long"))
@@ -309,11 +330,13 @@ def add_trade():
             take_profit=take_profit,
             position_size=pos_size,
             leverage=leverage,
-            fees=fees
+            fees=fees,
+            risk_amount=risk_amount
         )
 
         data["planned_rr"] = metrics["planned_rr"]
         data["realized_rr"] = metrics["realized_rr"]
+        data["risk_amount"] = risk_amount
         if exit_price is not None:
             data["pnl"] = metrics["pnl"]
             data["pnl_percent"] = metrics["pnl_percent"]
@@ -339,6 +362,7 @@ def update_trade(trade_id):
         stop_loss = float(data["stop_loss"]) if data.get("stop_loss") not in (None, "") else None
         take_profit = float(data["take_profit"]) if data.get("take_profit") not in (None, "") else None
         pos_size = float(data.get("position_size", existing.get("position_size", 0)))
+        risk_amount = float(data.get("risk_amount", existing.get("risk_amount", 0)))
         leverage = int(data.get("leverage", existing.get("leverage", 1)))
         fees = float(data.get("fees", existing.get("fees", 0)))
         trade_type = str(data.get("trade_type", existing.get("trade_type", "Long")))
@@ -351,11 +375,13 @@ def update_trade(trade_id):
             take_profit=take_profit,
             position_size=pos_size,
             leverage=leverage,
-            fees=fees
+            fees=fees,
+            risk_amount=risk_amount
         )
 
         data["planned_rr"] = metrics["planned_rr"]
         data["realized_rr"] = metrics["realized_rr"]
+        data["risk_amount"] = risk_amount
         if exit_price is not None:
             data["pnl"] = metrics["pnl"]
             data["pnl_percent"] = metrics["pnl_percent"]
