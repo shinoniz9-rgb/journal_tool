@@ -35,7 +35,6 @@ os.makedirs(CHARTS_DIR, exist_ok=True)
 
 # Khởi tạo Database Manager
 db = DatabaseManager()
-db.insert_sample_trades_if_empty(user_id=1)
 
 
 # ==========================================
@@ -91,8 +90,6 @@ def auth_register():
         user = result["user"]
         session.permanent = True
         session["user_id"] = user["id"]
-        # Thêm dữ liệu mẫu ban đầu cho tài khoản mới để trải nghiệm
-        db.insert_sample_trades_if_empty(user_id=user["id"])
         return jsonify({
             "success": True,
             "message": "Đăng ký tài khoản thành công!",

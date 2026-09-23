@@ -434,7 +434,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const wrEl = document.getElementById("kpi-win-rate");
         const wrVal = stats.win_rate || 0;
         wrEl.textContent = `${wrVal.toFixed(1)}%`;
-        wrEl.className = `kpi-value ${wrVal >= 50 ? "text-win" : "text-loss"}`;
+        if ((stats.closed_trades_count || 0) === 0) {
+            wrEl.className = "kpi-value text-be";
+        } else {
+            wrEl.className = `kpi-value ${wrVal >= 50 ? "text-win" : "text-loss"}`;
+        }
         document.getElementById("kpi-wins").textContent = `${stats.win_trades || 0}W`;
         document.getElementById("kpi-losses").textContent = `${stats.loss_trades || 0}L`;
         document.getElementById("kpi-be").textContent = `${stats.breakeven_trades || 0}BE`;
@@ -445,7 +449,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         document.getElementById("kpi-avg-win").textContent = `+$${(stats.avg_win || 0).toFixed(2)}`;
         document.getElementById("kpi-avg-loss").textContent = `-$${(stats.avg_loss || 0).toFixed(2)}`;
-        const ratio = stats.avg_loss > 0 ? (stats.avg_win / stats.avg_loss).toFixed(1) : "N/A";
+        const ratio = stats.avg_loss > 0 ? (stats.avg_win / stats.avg_loss).toFixed(1) : "0.0";
         document.getElementById("kpi-win-loss-ratio").textContent = `Tỷ lệ Lãi:Lỗ: ${ratio}x`;
 
         document.getElementById("kpi-avg-rr").textContent = `1 : ${(stats.avg_rr || 0).toFixed(2)}`;
