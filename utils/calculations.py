@@ -132,7 +132,7 @@ def calculate_portfolio_statistics(trades: List[Dict[str, Any]], initial_capital
     profit_factor = (
         round(total_profit / total_loss, 2)
         if total_loss > 0
-        else (round(total_profit, 2) if total_profit > 0 else 0.0)
+        else (None if total_profit > 0 else 0.0)
     )
 
     avg_win = round(total_profit / win_count, 2) if win_count > 0 else 0.0

@@ -534,14 +534,34 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-losses").textContent = `${stats.loss_trades || 0}L`;
         document.getElementById("kpi-be").textContent = `${stats.breakeven_trades || 0}BE`;
 
-        document.getElementById("kpi-profit-factor").textContent = (stats.profit_factor || 0).toFixed(2);
+        const pfEl = document.getElementById("kpi-profit-factor");
+        if ((stats.total_loss || 0) === 0) {
+            if ((stats.total_profit || 0) > 0) {
+                pfEl.textContent = "MAX";
+                pfEl.className = "kpi-value text-win";
+            } else {
+                pfEl.textContent = "0.00";
+                pfEl.className = "kpi-value text-be";
+            }
+        } else {
+            const pfVal = stats.profit_factor || 0;
+            pfEl.textContent = pfVal.toFixed(2);
+            pfEl.className = `kpi-value ${pfVal >= 1.5 ? "text-win" : pfVal >= 1.0 ? "text-accent" : "text-loss"}`;
+        }
         document.getElementById("kpi-total-profit").textContent = `+$${(stats.total_profit || 0).toLocaleString()}`;
         document.getElementById("kpi-total-loss").textContent = `-$${(stats.total_loss || 0).toLocaleString()}`;
 
         document.getElementById("kpi-avg-win").textContent = `+$${(stats.avg_win || 0).toFixed(2)}`;
         document.getElementById("kpi-avg-loss").textContent = `-$${(stats.avg_loss || 0).toFixed(2)}`;
-        const ratio = stats.avg_loss > 0 ? (stats.avg_win / stats.avg_loss).toFixed(1) : "0.0";
-        document.getElementById("kpi-win-loss-ratio").textContent = `Tỷ lệ Lãi:Lỗ: ${ratio}x`;
+        const ratioEl = document.getElementById("kpi-win-loss-ratio");
+        if ((stats.avg_loss || 0) > 0) {
+            const ratio = ((stats.avg_win || 0) / stats.avg_loss).toFixed(1);
+            ratioEl.textContent = `Tỷ lệ Lãi:Lỗ: ${ratio}x`;
+        } else if ((stats.avg_win || 0) > 0) {
+            ratioEl.textContent = `Tỷ lệ Lãi:Lỗ: MAX`;
+        } else {
+            ratioEl.textContent = `Tỷ lệ Lãi:Lỗ: 0.0x`;
+        }
 
         document.getElementById("kpi-avg-rr").textContent = `1 : ${(stats.avg_rr || 0).toFixed(2)}`;
         document.getElementById("kpi-max-wins").textContent = `${stats.max_consecutive_wins || 0}W`;
