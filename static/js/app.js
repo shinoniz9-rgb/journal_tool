@@ -561,7 +561,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function hideCapitalEditMode() {
         if (!elements.capitalDisplayView || !elements.capitalEditView) return;
         elements.capitalEditView.style.display = "none";
-        elements.capitalDisplayView.style.display = "block";
+        elements.capitalDisplayView.style.display = "";
     }
 
     async function handleSaveCapital() {

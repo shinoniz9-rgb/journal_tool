@@ -335,6 +335,13 @@ body {
     transition: var(--transition-normal);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+#capital-display-view {
+    display: contents;
 }
 
 .kpi-card:hover {
@@ -384,6 +391,7 @@ body {
 .kpi-subtext {
     font-size: 12px;
     color: var(--text-muted);
+    margin-top: auto;
 }
 
 .btn-icon-tiny {
@@ -914,7 +922,8 @@ body {
     font-size: 14px;
     font-weight: 800;
     font-family: 'JetBrains Mono', monospace;
-    margin: 4px 0;
+    margin: auto 0;
+    text-align: center;
 }
 
 .cal-day-trades {
@@ -2148,15 +2157,19 @@ html, body {
         min-height: 98px !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: space-between !important;
+        justify-content: flex-start !important;
         border-radius: var(--radius-sm) !important;
+    }
+
+    #capital-display-view {
+        display: contents !important;
     }
 
     .kpi-header {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 6px !important;
         min-height: 20px !important;
     }
 
@@ -2170,8 +2183,7 @@ html, body {
     }
 
     .kpi-icon {
-        font-size: 14px !important;
-        flex-shrink: 0 !important;
+        display: none !important;
     }
 
     .kpi-value {
@@ -2196,6 +2208,7 @@ html, body {
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+        margin-top: auto !important;
     }
 
     .kpi-badge {
@@ -2295,34 +2308,40 @@ html, body {
     }
 
     .cal-day-cell {
+        position: relative !important;
         min-height: 48px !important;
         max-height: 52px !important;
-        padding: 3px 2px !important;
+        padding: 2px !important;
         border-radius: 6px !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: space-between !important;
+        justify-content: center !important;
         align-items: center !important;
     }
 
     .cal-day-cell .cal-cell-top {
+        position: absolute !important;
+        top: 2px !important;
+        left: 3px !important;
+        right: 3px !important;
         display: flex !important;
         justify-content: space-between !important;
         align-items: center !important;
-        width: 100% !important;
-        padding: 0 2px !important;
+        width: calc(100% - 6px) !important;
+        padding: 0 !important;
+        pointer-events: none !important;
     }
 
     .cal-day-number {
-        font-size: 11px !important;
+        font-size: 10.5px !important;
         line-height: 1 !important;
     }
 
     .cal-day-pnl {
-        font-size: 10px !important;
-        font-weight: 700 !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
         margin: 0 !important;
-        line-height: 1.1 !important;
+        line-height: 1 !important;
         text-align: center !important;
         white-space: nowrap !important;
     }
