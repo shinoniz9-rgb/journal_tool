@@ -1536,3 +1536,640 @@ textarea.form-control {
     font-size: 14px;
     margin-top: 6px;
 }
+
+
+/* ==========================================================================
+   ADVANCED MOBILE & IPHONE OPTIMIZATIONS (iOS FIRST ARCHITECTURE)
+   ========================================================================== */
+
+:root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent iOS tap highlight & enable smooth gesture manipulation */
+html, body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Desktop Defaults for Mobile elements */
+.mobile-bottom-nav {
+    display: none;
+}
+.trades-cards-container {
+    display: none;
+}
+.btn-mobile-camera {
+    display: none;
+}
+.view-mode-toggle {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 2px;
+    gap: 2px;
+}
+.btn-toggle-view {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+.btn-toggle-view:hover {
+    color: var(--text-primary);
+}
+.btn-toggle-view.active {
+    background-color: var(--bg-input-focus);
+    color: #FFFFFF;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ==========================================================================
+   MOBILE & IPHONE SCREEN STYLES (max-width: 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    /* 1. iOS Auto-Zoom Prevention: Ensure 16px minimum on all form controls */
+    input, select, textarea, .form-control {
+        font-size: 16px !important;
+    }
+
+    /* 2. Layout & Spacing adjustments for Notch / Dynamic Island & Home Bar */
+    body {
+        padding-top: max(8px, var(--sat));
+        padding-bottom: calc(75px + var(--sab)) !important;
+        padding-left: max(10px, var(--sal));
+        padding-right: max(10px, var(--sar));
+    }
+
+    .app-layout {
+        gap: 14px;
+    }
+
+    /* 3. Streamlined Top Header on Mobile */
+    .app-header {
+        padding: 8px 12px;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .brand-logo {
+        gap: 8px;
+    }
+
+    .brand-icon {
+        font-size: 22px;
+    }
+
+    .brand-title {
+        font-size: 15px;
+    }
+
+    .brand-badge {
+        font-size: 9px;
+        padding: 1px 5px;
+    }
+
+    /* Hide desktop tabs and add button in header on mobile */
+    .header-tabs {
+        display: none !important;
+    }
+    
+    #btn-open-add-trade {
+        display: none !important;
+    }
+
+    .header-right {
+        gap: 6px;
+    }
+
+    .user-profile-chip {
+        padding: 4px 8px 4px 5px;
+    }
+
+    .user-display-name {
+        max-width: 90px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+    }
+
+    /* 4. Native-feeling Bottom Navigation Bar (Binance/TradingView Style) */
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 2000;
+        background: rgba(15, 19, 26, 0.94);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(0, 245, 155, 0.2);
+        box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
+        padding: 6px 16px calc(6px + var(--sab)) 16px;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .mobile-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        font-size: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 6px 8px;
+        border-radius: 8px;
+        transition: var(--transition-fast);
+        min-width: 58px;
+    }
+
+    .mobile-nav-item svg {
+        transition: transform 0.2s ease, stroke 0.2s ease;
+    }
+
+    .mobile-nav-item.active {
+        color: var(--win-green);
+        font-weight: 800;
+    }
+
+    .mobile-nav-item.active svg {
+        stroke: var(--win-green);
+        transform: translateY(-2px);
+    }
+
+    .nav-icon-wrap {
+        position: relative;
+        display: inline-flex;
+    }
+
+    .nav-counter-badge {
+        position: absolute;
+        top: -6px;
+        right: -10px;
+        background: var(--win-green);
+        color: #071711;
+        font-size: 10px;
+        font-weight: 900;
+        border-radius: 10px;
+        padding: 1px 5px;
+        min-width: 16px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0, 245, 155, 0.4);
+    }
+
+    /* Floating Center Add Button (FAB) */
+    .mobile-nav-fab {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent-cyan), var(--win-green));
+        color: #071711;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #0F131A;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(0, 245, 155, 0.5), 0 0 10px rgba(0, 245, 155, 0.3);
+        transform: translateY(-12px);
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .mobile-nav-fab:active {
+        transform: translateY(-10px) scale(0.92);
+    }
+
+    /* 5. Filter Bar on Mobile */
+    .filter-bar {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .filter-inputs {
+        flex-direction: column;
+        width: 100%;
+        gap: 8px;
+    }
+
+    .search-input-group {
+        min-width: 100%;
+        width: 100%;
+    }
+
+    .filter-select {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .filter-actions {
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 4px;
+    }
+
+    /* 6. Mobile Trade Cards View */
+    .trades-cards-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .trades-cards-container.hide-cards {
+        display: none !important;
+    }
+
+    .table-container.hide-table {
+        display: none !important;
+    }
+
+    .trade-card {
+        background: linear-gradient(180deg, #151A22 0%, #0F131A 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .trade-card.card-win {
+        border-left: 4px solid var(--win-green);
+    }
+
+    .trade-card.card-loss {
+        border-left: 4px solid var(--loss-red);
+    }
+
+    .trade-card.card-open {
+        border-left: 4px solid var(--accent-cyan);
+    }
+
+    .trade-card.card-be {
+        border-left: 4px solid var(--text-muted);
+    }
+
+    .tc-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 8px;
+    }
+
+    .tc-symbol-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tc-symbol {
+        font-size: 16px;
+        font-weight: 800;
+        color: #FFFFFF;
+        letter-spacing: 0.3px;
+    }
+
+    .tc-timeframe {
+        font-size: 11px;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.06);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    .tc-badges-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Card Metrics Grid */
+    .tc-metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 14px;
+        background: rgba(0, 0, 0, 0.25);
+        padding: 10px 12px;
+        border-radius: 10px;
+    }
+
+    .tc-metric-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .tc-metric-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .tc-metric-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    /* PnL Highlight Box */
+    .tc-pnl-box {
+        grid-column: span 2;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 8px;
+        margin-top: 4px;
+        border-top: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+
+    .tc-pnl-number {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+    }
+
+    .tc-roi-pill {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    /* Card Tags & Notes */
+    .tc-details-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+    }
+
+    .tc-tag {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 3px 8px;
+        border-radius: 6px;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    .tc-chart-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 2px;
+    }
+
+    .tc-chart-thumb {
+        width: 100%;
+        height: 90px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 245, 155, 0.3);
+        cursor: pointer;
+    }
+
+    /* Card Action Footer */
+    .tc-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .tc-date-text {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    .tc-actions-btns {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tc-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        min-height: 40px;
+        min-width: 40px;
+        transition: var(--transition-fast);
+    }
+
+    .tc-btn-edit {
+        background: rgba(0, 245, 155, 0.12);
+        color: var(--win-green);
+        border: 1px solid rgba(0, 245, 155, 0.25);
+    }
+
+    .tc-btn-delete {
+        background: rgba(255, 71, 87, 0.12);
+        color: var(--loss-red);
+        border: 1px solid rgba(255, 71, 87, 0.25);
+    }
+
+    /* 7. Modal Trade Form as iPhone Slide-up Bottom Sheet */
+    .modal-backdrop {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .modal-dialog {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 90vh !important;
+        border-radius: 22px 22px 0 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8) !important;
+        animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    @keyframes slideUpSheet {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+
+    .modal-header {
+        padding: 14px 18px !important;
+        border-bottom: 1px solid var(--border-color);
+        background: #151A22;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-radius: 22px 22px 0 0;
+    }
+
+    .modal-title {
+        font-size: 16px;
+    }
+
+    .modal-body {
+        padding: 16px 18px !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        flex: 1 !important;
+    }
+
+    .modal-footer {
+        padding: 12px 18px calc(12px + var(--sab)) 18px !important;
+        background: #11151D;
+        border-top: 1px solid var(--border-color);
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+    }
+
+    .modal-footer .btn {
+        flex: 1;
+        padding: 14px !important;
+        font-size: 15px !important;
+    }
+
+    /* Segmented controls on mobile */
+    .segment-label {
+        padding: 12px 10px;
+        font-size: 13px;
+    }
+
+    /* Mobile Camera / Library Upload Button */
+    .btn-mobile-camera {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 12px;
+        margin-top: 8px;
+        background: rgba(0, 245, 155, 0.1);
+        border: 1px dashed var(--win-green);
+        color: var(--win-green);
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
+
+    .btn-mobile-camera:active {
+        background: rgba(0, 245, 155, 0.25);
+        transform: scale(0.98);
+    }
+
+    /* 8. Dashboard KPI on Mobile */
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px;
+    }
+
+    .kpi-card {
+        padding: 12px;
+    }
+
+    .kpi-title {
+        font-size: 11px;
+    }
+
+    .kpi-value {
+        font-size: 18px !important;
+    }
+
+    .kpi-badge {
+        font-size: 10px;
+        padding: 1px 6px;
+    }
+
+    .dashboard-charts-grid,
+    .dashboard-bottom-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .chart-card {
+        padding: 14px;
+    }
+
+    .chart-container-lg {
+        height: 240px !important;
+    }
+
+    .chart-container-sm {
+        height: 200px !important;
+    }
+
+    /* 9. Calendar on Mobile */
+    .calendar-card {
+        padding: 12px;
+    }
+
+    .calendar-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .calendar-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .cal-day-cell {
+        min-height: 56px !important;
+        padding: 4px !important;
+        border-radius: 8px !important;
+    }
+
+    .cal-day-number {
+        font-size: 11px !important;
+    }
+
+    .cal-pnl {
+        font-size: 9px !important;
+        padding: 2px 4px !important;
+    }
+
+    /* 10. Auth Modal on Mobile */
+    .auth-dialog {
+        width: 92% !important;
+        margin: auto !important;
+        border-radius: 18px !important;
+        padding: 24px 18px !important;
+    }
+}

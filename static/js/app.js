@@ -66,6 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Table
         tradesTbody: document.getElementById("trades-tbody"),
+        tradesCardsContainer: document.getElementById("trades-cards-container"),
+        bnavTradeCounter: document.getElementById("bnav-trade-counter"),
         tradesEmptyState: document.getElementById("trades-empty-state"),
 
         // Trade Modal & Form
@@ -620,6 +622,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             renderTradesTable(trades);
             elements.totalTradesCounter.textContent = trades.length;
+            if (elements.bnavTradeCounter) {
+                elements.bnavTradeCounter.textContent = trades.length;
+            }
             elements.filterStatsLabel.textContent = `Đang hiển thị ${trades.length} lệnh`;
         } catch (err) {
             console.error("Lỗi nạp danh sách lệnh:", err);
@@ -628,6 +633,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderTradesTable(trades) {
         elements.tradesTbody.innerHTML = "";
+        if (elements.tradesCardsContainer) {
+            elements.tradesCardsContainer.innerHTML = "";
+        }
 
         if (!trades || trades.length === 0) {
             elements.tradesEmptyState.style.display = "block";
@@ -706,6 +714,97 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             elements.tradesTbody.appendChild(tr);
+
+            // Mobile Card Rendering
+            if (elements.tradesCardsContainer) {
+                const card = document.createElement("div");
+                const cardPnlClass = t.status === "Open" ? "card-open" : pnl > 0 ? "card-win" : pnl < 0 ? "card-loss" : "card-be";
+                card.className = `trade-card ${cardPnlClass}`;
+
+                let pnlCardHtml = "-";
+                let roiCardHtml = "-";
+                if (t.status === "Closed") {
+                    const pnlSign = pnl >= 0 ? "+" : "";
+                    const pnlColorClass = pnl >= 0 ? "text-win" : "text-loss";
+                    pnlCardHtml = `<span class="${pnlColorClass} font-bold">${pnlSign}$${pnl.toFixed(2)}</span>`;
+                    roiCardHtml = `<span class="tc-roi-pill ${pnl >= 0 ? 'badge-long' : 'badge-short'}">${pnlSign}${pnlPercent.toFixed(2)}%</span>`;
+                } else if (t.status === "Open") {
+                    pnlCardHtml = `<span class="badge badge-open">Đang chạy</span>`;
+                    roiCardHtml = `<span>-</span>`;
+                }
+
+                let chartCardHtml = "";
+                if (t.chart_image_path) {
+                    const chartUrl = t.chart_image_path.startsWith("/") || t.chart_image_path.startsWith("http") 
+                        ? t.chart_image_path 
+                        : `/charts/${t.chart_image_path.split(/[\\/]/).pop()}`;
+                    chartCardHtml = `
+                        <div class="tc-chart-row">
+                            <img src="${chartUrl}" class="tc-chart-thumb chart-thumb" alt="Chart" data-src="${chartUrl}" title="Nhấn để phóng to">
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="tc-top-row">
+                        <div class="tc-symbol-group">
+                            <span class="tc-symbol">${t.symbol}</span>
+                            ${t.timeframe ? `<span class="tc-timeframe">${t.timeframe}</span>` : ''}
+                        </div>
+                        <div class="tc-badges-group">
+                            ${typeBadge}
+                            ${marketInfo}
+                            ${statusBadge}
+                        </div>
+                    </div>
+                    <div class="tc-metrics-grid">
+                        <div class="tc-metric-item">
+                            <span class="tc-metric-label">Giá Vào / Ra</span>
+                            <span class="tc-metric-value mono">$${(t.entry_price || 0).toLocaleString()} ➔ ${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</span>
+                        </div>
+                        <div class="tc-metric-item">
+                            <span class="tc-metric-label">Ký Quỹ / R:R</span>
+                            <span class="tc-metric-value mono">$${(t.position_size || 0).toFixed(0)} | ${rrHtml}</span>
+                        </div>
+                        <div class="tc-pnl-box">
+                            <div>
+                                <div class="tc-metric-label">PnL Ròng</div>
+                                <div class="tc-pnl-number mono">${pnlCardHtml}</div>
+                            </div>
+                            <div>
+                                ${roiCardHtml}
+                            </div>
+                        </div>
+                    </div>
+                    ${(t.strategy || t.emotion) ? `
+                    <div class="tc-details-row">
+                        ${t.strategy ? `<span class="tc-tag">🎯 ${t.strategy}</span>` : ''}
+                        ${t.emotion ? `<span class="tc-tag">💭 ${t.emotion}</span>` : ''}
+                    </div>` : ''}
+                    ${chartCardHtml}
+                    <div class="tc-footer">
+                        <span class="tc-date-text">🕒 ${dateStr}</span>
+                        <div class="tc-actions-btns">
+                            <button type="button" class="tc-btn tc-btn-edit btn-edit" data-id="${t.id}" title="Chỉnh sửa">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                <span>Sửa</span>
+                            </button>
+                            <button type="button" class="tc-btn tc-btn-delete btn-delete" data-id="${t.id}" title="Xóa lệnh">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                <span>Xóa</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                card.addEventListener("click", (e) => {
+                    if (e.target.closest(".tc-btn") || e.target.closest(".chart-thumb")) return;
+                    openEditModal(t.id);
+                });
+
+                elements.tradesCardsContainer.appendChild(card);
+            }
+
         });
 
         document.querySelectorAll(".chart-thumb").forEach(img => {
@@ -1258,6 +1357,98 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.btnEmptyAddTrade.addEventListener("click", openAddModal);
         elements.btnCloseTradeModal.addEventListener("click", closeTradeModal);
         elements.btnCancelTrade.addEventListener("click", closeTradeModal);
+
+        // Mobile Navigation & View Switcher Wiring
+        const mobileNavItems = document.querySelectorAll(".mobile-nav-item");
+        const btnMobileQuickAdd = document.getElementById("btn-mobile-quick-add");
+        const btnMobileCamera = document.getElementById("btn-mobile-camera");
+        const fileChartInput = document.getElementById("file-chart-input");
+
+        function switchAppTab(targetTab) {
+            state.currentTab = targetTab;
+
+            elements.tabBtns.forEach(b => {
+                if (b.getAttribute("data-tab") === targetTab) b.classList.add("active");
+                else b.classList.remove("active");
+            });
+
+            mobileNavItems.forEach(b => {
+                if (b.getAttribute("data-tab") === targetTab) b.classList.add("active");
+                else b.classList.remove("active");
+            });
+
+            elements.tabViews.forEach(v => v.classList.remove("active"));
+            const targetView = document.getElementById(`view-${targetTab}`);
+            if (targetView) targetView.classList.add("active");
+
+            if (targetTab === "calendar") {
+                renderCalendar();
+            } else if (targetTab === "dashboard" && state.chartInstance) {
+                state.chartInstance.resize();
+            }
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        // Connect desktop tabs to switchAppTab
+        elements.tabBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                switchAppTab(btn.getAttribute("data-tab"));
+            });
+        });
+
+        // Connect mobile bottom navigation items
+        mobileNavItems.forEach(item => {
+            item.addEventListener("click", () => {
+                switchAppTab(item.getAttribute("data-tab"));
+            });
+        });
+
+        if (btnMobileQuickAdd) {
+            btnMobileQuickAdd.addEventListener("click", openAddModal);
+        }
+
+        if (btnMobileCamera && fileChartInput) {
+            btnMobileCamera.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileChartInput.click();
+            });
+        }
+
+        // View Mode Switcher (Card View vs Table View)
+        const btnViewCards = document.getElementById("btn-view-cards");
+        const btnViewTable = document.getElementById("btn-view-table");
+        const cardsContainer = document.getElementById("trades-cards-container");
+        const tableContainer = document.querySelector(".table-container");
+
+        if (btnViewCards && btnViewTable && cardsContainer && tableContainer) {
+            btnViewCards.addEventListener("click", () => {
+                btnViewCards.classList.add("active");
+                btnViewTable.classList.remove("active");
+                cardsContainer.classList.remove("hide-cards");
+                tableContainer.classList.add("hide-table");
+                localStorage.setItem("preferred_trade_view", "cards");
+            });
+
+            btnViewTable.addEventListener("click", () => {
+                btnViewTable.classList.add("active");
+                btnViewCards.classList.remove("active");
+                cardsContainer.classList.add("hide-cards");
+                tableContainer.classList.remove("hide-table");
+                localStorage.setItem("preferred_trade_view", "table");
+            });
+
+            // Initialize view mode based on device screen width
+            if (window.innerWidth <= 768) {
+                const saved = localStorage.getItem("preferred_trade_view");
+                if (saved === "table") {
+                    btnViewTable.click();
+                } else {
+                    btnViewCards.click();
+                }
+            }
+        }
+
         elements.tradeForm.addEventListener("submit", handleSaveTrade);
 
         [

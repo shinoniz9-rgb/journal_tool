@@ -2,7 +2,13 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- Apple iOS & Web App Optimizations -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Crypto Journal">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#0B0E14">
     <title>Crypto Trading Journal - Nhật Ký Giao Dịch Pro</title>
     <meta name="description" content="Nhật ký giao dịch Crypto chuyên nghiệp, quản lý lệnh, kiểm soát tâm lý, theo dõi tăng trưởng vốn và dán ảnh biểu đồ TradingView trực tiếp.">
     <!-- Google Fonts: Inter -->
@@ -228,6 +234,16 @@
                     </div>
 
                     <div class="filter-actions">
+                        <div class="view-mode-toggle" id="view-mode-toggle">
+                            <button type="button" class="btn-toggle-view active" id="btn-view-cards" title="Xem dạng Thẻ (Tối ưu điện thoại)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                <span>Thẻ</span>
+                            </button>
+                            <button type="button" class="btn-toggle-view" id="btn-view-table" title="Xem dạng Bảng chi tiết">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                                <span>Bảng</span>
+                            </button>
+                        </div>
                         <span class="filter-stats-text" id="filter-stats-label">Đang hiển thị 0 lệnh</span>
                         <button class="btn btn-ghost" id="btn-reset-filters" title="Xóa bộ lọc">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -235,6 +251,9 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- MOBILE TRADE CARDS CONTAINER -->
+                <div class="trades-cards-container" id="trades-cards-container"></div>
 
                 <div class="table-container">
                     <table class="trades-table" id="trades-table">
@@ -440,7 +459,7 @@
                             </select>
                             <div class="leverage-input-wrapper" id="leverage-wrapper">
                                 <span class="leverage-prefix">x</span>
-                                <input type="number" id="form-leverage" class="form-control" value="10" min="1" max="125">
+                                <input type="number" id="form-leverage" class="form-control" value="10" min="1" max="125" inputmode="numeric">
                             </div>
                         </div>
                     </div>
@@ -482,29 +501,29 @@
                 <div class="form-row form-grid-3">
                     <div class="form-group">
                         <label for="form-entry-price" class="form-label required">Giá Vào (Entry Price)</label>
-                        <input type="number" step="any" id="form-entry-price" class="form-control mono" placeholder="0.00" required>
+                        <input type="number" step="any" id="form-entry-price" class="form-control mono" placeholder="0.00" required inputmode="decimal">
                     </div>
 
                     <div class="form-group">
                         <label for="form-stop-loss" class="form-label">Stop Loss (Cắt lỗ)</label>
-                        <input type="number" step="any" id="form-stop-loss" class="form-control mono text-loss" placeholder="0.00">
+                        <input type="number" step="any" id="form-stop-loss" class="form-control mono text-loss" placeholder="0.00" inputmode="decimal">
                     </div>
 
                     <div class="form-group">
                         <label for="form-take-profit" class="form-label">Take Profit (Chốt lời)</label>
-                        <input type="number" step="any" id="form-take-profit" class="form-control mono text-win" placeholder="0.00">
+                        <input type="number" step="any" id="form-take-profit" class="form-control mono text-win" placeholder="0.00" inputmode="decimal">
                     </div>
                 </div>
 
                 <div class="form-row form-grid-3">
                     <div class="form-group" id="exit-price-group">
                         <label for="form-exit-price" class="form-label">Giá Thoát Lệnh (Exit Price)</label>
-                        <input type="number" step="any" id="form-exit-price" class="form-control mono" placeholder="0.00">
+                        <input type="number" step="any" id="form-exit-price" class="form-control mono" placeholder="0.00" inputmode="decimal">
                     </div>
 
                     <div class="form-group">
                         <label for="form-position-size" class="form-label required">Ký Quỹ / Margin ($)</label>
-                        <input type="number" step="any" id="form-position-size" class="form-control mono" placeholder="Ví dụ: 100" required>
+                        <input type="number" step="any" id="form-position-size" class="form-control mono" placeholder="Ví dụ: 100" required inputmode="decimal">
                     </div>
 
                     <div class="form-group">
@@ -575,6 +594,11 @@
                                 <strong>Nhấn Ctrl + V để Dán Ảnh Biểu Đồ Trực Tiếp</strong>
                                 <span>hoặc kéo thả ảnh vào đây, hoặc <span class="browse-link">chọn file từ máy</span></span>
                             </div>
+                            <button type="button" class="btn-mobile-camera" id="btn-mobile-camera">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                <span>📸 Chụp ảnh / Chọn từ thư viện iPhone</span>
+                            </button>
+                            </div>
                             <input type="file" id="file-chart-input" accept="image/*" style="display: none;">
                         </div>
 
@@ -604,6 +628,28 @@
     </div>
 
     <!-- TOAST NOTIFICATIONS -->
+    <!-- NATIVE MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <button type="button" class="mobile-nav-item active" data-tab="dashboard" id="bnav-dashboard">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+            <span>Tổng Quan</span>
+        </button>
+        <button type="button" class="mobile-nav-item" data-tab="journal" id="bnav-journal">
+            <div class="nav-icon-wrap">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span class="nav-counter-badge" id="bnav-trade-counter">0</span>
+            </div>
+            <span>Nhật Ký</span>
+        </button>
+        <button type="button" class="mobile-nav-fab" id="btn-mobile-quick-add" title="Thêm lệnh mới (+)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button type="button" class="mobile-nav-item" data-tab="calendar" id="bnav-calendar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Lịch PnL</span>
+        </button>
+    </nav>
+
     <div class="toast-container" id="toast-container"></div>
 
     <script src="/static/js/app.js"></script>
