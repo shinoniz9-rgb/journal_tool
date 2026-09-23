@@ -989,6 +989,12 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.tradeModalTitle.textContent = "Ghi Nhận Lệnh Mới";
         elements.btnSaveText.textContent = "Lưu Lệnh Vào Nhật Ký";
 
+        elements.formPositionSize.value = "100";
+        elements.formFees.value = "0";
+        elements.formLeverage.value = "10";
+        elements.formMarketType.value = "Futures";
+        elements.formSymbol.value = "BTC/USDT";
+
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         elements.formEntryDate.value = now.toISOString().slice(0, 16);
@@ -996,6 +1002,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resetDropzone();
         updateFormLiveCalculations();
 
+        document.body.classList.add("modal-open");
         elements.modalTradeForm.classList.add("active");
     }
 
@@ -1054,7 +1061,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             updateFormLiveCalculations();
-            elements.modalTradeForm.classList.add("active");
+            document.body.classList.add("modal-open");
+        elements.modalTradeForm.classList.add("active");
 
         } catch (err) {
             showToast(err.message, "error");
@@ -1062,6 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function closeTradeModal() {
+        document.body.classList.remove("modal-open");
         elements.modalTradeForm.classList.remove("active");
     }
 
@@ -1082,7 +1091,7 @@ document.addEventListener("DOMContentLoaded", () => {
             stop_loss: elements.formStopLoss.value ? parseFloat(elements.formStopLoss.value) : null,
             take_profit: elements.formTakeProfit.value ? parseFloat(elements.formTakeProfit.value) : null,
             exit_price: elements.formExitPrice.value ? parseFloat(elements.formExitPrice.value) : null,
-            position_size: parseFloat(elements.formPositionSize.value) || 0,
+            position_size: parseFloat(elements.formPositionSize.value) || 100,
             fees: parseFloat(elements.formFees.value) || 0,
             strategy: elements.formStrategy.value,
             emotion: elements.formEmotion.value,
@@ -1140,7 +1149,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const exit = parseFloat(elements.formExitPrice.value) || null;
         const sl = parseFloat(elements.formStopLoss.value) || null;
         const tp = parseFloat(elements.formTakeProfit.value) || null;
-        const margin = parseFloat(elements.formPositionSize.value) || 0;
+        const margin = parseFloat(elements.formPositionSize.value) || 100;
         const lev = parseInt(elements.formLeverage.value) || 1;
         const fees = parseFloat(elements.formFees.value) || 0;
 
