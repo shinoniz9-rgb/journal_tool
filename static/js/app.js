@@ -417,38 +417,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     pairs.forEach(pair => {
                         // Datalist
-                        const opt = document.createElement("option");
-                        opt.value = pair;
-                        elements.pairsDatalist.appendChild(opt);
+                        if (elements.pairsDatalist) {
+                            const opt = document.createElement("option");
+                            opt.value = pair;
+                            elements.pairsDatalist.appendChild(opt);
+                        }
 
                         // Filter
-                        const fOpt = document.createElement("option");
-                        fOpt.value = pair;
-                        fOpt.textContent = pair;
-                        filterGrp.appendChild(fOpt);
+                        if (elements.filterSymbol) {
+                            const fOpt = document.createElement("option");
+                            fOpt.value = pair;
+                            fOpt.textContent = pair;
+                            filterGrp.appendChild(fOpt);
+                        }
 
                         // Form select
-                        const sOpt = document.createElement("option");
-                        sOpt.value = pair;
-                        sOpt.textContent = pair;
-                        formGrp.appendChild(sOpt);
+                        if (formSymbolSelect) {
+                            const sOpt = document.createElement("option");
+                            sOpt.value = pair;
+                            sOpt.textContent = pair;
+                            formGrp.appendChild(sOpt);
+                        }
                     });
 
-                    elements.filterSymbol.appendChild(filterGrp);
+                    if (elements.filterSymbol) {
+                        elements.filterSymbol.appendChild(filterGrp);
+                    }
                     if (formSymbolSelect) {
                         formSymbolSelect.appendChild(formGrp);
                     }
                 }
             } else {
                 data.pairs.forEach(pair => {
-                    const opt = document.createElement("option");
-                    opt.value = pair;
-                    elements.pairsDatalist.appendChild(opt);
+                    if (elements.pairsDatalist) {
+                        const opt = document.createElement("option");
+                        opt.value = pair;
+                        elements.pairsDatalist.appendChild(opt);
+                    }
 
-                    const filterOpt = document.createElement("option");
-                    filterOpt.value = pair;
-                    filterOpt.textContent = pair;
-                    elements.filterSymbol.appendChild(filterOpt);
+                    if (elements.filterSymbol) {
+                        const filterOpt = document.createElement("option");
+                        filterOpt.value = pair;
+                        filterOpt.textContent = pair;
+                        elements.filterSymbol.appendChild(filterOpt);
+                    }
                 });
             }
 
@@ -697,102 +709,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderBreakdowns(stats) {
-        // Strategy
-        const stratContainer = document.getElementById("strategy-breakdown-list");
-        if (stratContainer) {
-            stratContainer.innerHTML = "";
-            const strats = stats.strategy_stats || {};
-            const stratKeys = Object.keys(strats);
-
-            if (stratKeys.length === 0) {
-                stratContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu chiến lược</div>';
-            } else {
-                stratKeys.sort((a, b) => (strats[b].pnl || 0) - (strats[a].pnl || 0));
-                stratKeys.forEach(name => {
-                    const item = strats[name];
-                    const pnl = item.pnl || 0;
-                    const wr = item.win_rate || 0;
-                    const el = document.createElement("div");
-                    el.className = "breakdown-item";
-                    el.innerHTML = `
-                        <div class="breakdown-item-header">
-                            <span class="breakdown-name">${name} (${item.count} lệnh)</span>
-                            <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
-                                ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
-                            </span>
-                        </div>
-                        <div class="breakdown-bar-bg">
-                            <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%;"></div>
-                        </div>
-                    `;
-                    stratContainer.appendChild(el);
-                });
-            }
-        }
-
-        // Emotion
-        const emoContainer = document.getElementById("emotion-breakdown-list");
-        if (emoContainer) {
-            emoContainer.innerHTML = "";
-            const emos = stats.emotion_stats || {};
-            const emoKeys = Object.keys(emos);
-
-            if (emoKeys.length === 0) {
-                emoContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu tâm lý</div>';
-            } else {
-                emoKeys.forEach(name => {
-                    const item = emos[name];
-                    const pnl = item.pnl || 0;
-                    const wr = item.win_rate || 0;
-                    const el = document.createElement("div");
-                    el.className = "breakdown-item";
-                    el.innerHTML = `
-                        <div class="breakdown-item-header">
-                            <span class="breakdown-name">${name} (${item.count} lệnh)</span>
-                            <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
-                                ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
-                            </span>
-                        </div>
-                        <div class="breakdown-bar-bg">
-                            <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%; background: ${pnl >= 0 ? 'var(--win-green)' : 'var(--loss-red)'};"></div>
-                        </div>
-                    `;
-                    emoContainer.appendChild(el);
-                });
-            }
-        }
-
-        // Symbol
-        const symContainer = document.getElementById("symbol-breakdown-list");
-        if (symContainer) {
-            symContainer.innerHTML = "";
-            const syms = stats.symbol_stats || {};
-            const symKeys = Object.keys(syms);
-
-            if (symKeys.length === 0) {
-                symContainer.innerHTML = '<div class="no-chart">Chưa có dữ liệu cặp tiền</div>';
-            } else {
-                symKeys.forEach(name => {
-                    const item = syms[name];
-                    const pnl = item.pnl || 0;
-                    const wr = item.win_rate || 0;
-                    const el = document.createElement("div");
-                    el.className = "breakdown-item";
-                    el.innerHTML = `
-                        <div class="breakdown-item-header">
-                            <span class="breakdown-name font-bold">${name} (${item.count} lệnh)</span>
-                            <span class="breakdown-stats ${pnl >= 0 ? 'text-win' : 'text-loss'}">
-                                ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | WR: ${wr}%
-                            </span>
-                        </div>
-                        <div class="breakdown-bar-bg">
-                            <div class="breakdown-bar-fill" style="width: ${Math.min(wr, 100)}%;"></div>
-                        </div>
-                    `;
-                    symContainer.appendChild(el);
-                });
-            }
-        }
+        // Breakdowns are integrated into the main KPI and stats overview
     }
 
     // ==========================================
@@ -1598,26 +1515,6 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
         elements.btnLogout.addEventListener("click", handleLogout);
-
-        // App Navigation Tabs
-        elements.tabBtns.forEach(btn => {
-            btn.addEventListener("click", () => {
-                const targetTab = btn.getAttribute("data-tab");
-                state.currentTab = targetTab;
-
-                elements.tabBtns.forEach(b => b.classList.remove("active"));
-                elements.tabViews.forEach(v => v.classList.remove("active"));
-
-                btn.classList.add("active");
-                document.getElementById(`view-${targetTab}`).classList.add("active");
-
-                if (targetTab === "calendar") {
-                    renderCalendar();
-                } else if (targetTab === "dashboard" && state.chartInstance) {
-                    state.chartInstance.resize();
-                }
-            });
-        });
 
         // Trade Actions
         elements.btnOpenAddTrade.addEventListener("click", openAddModal);
