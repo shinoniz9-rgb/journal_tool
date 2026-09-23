@@ -3,7 +3,7 @@ services:
     name: crypto-trading-journal
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn web_app:app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT web_app:app
     plan: free
     autoDeploy: true
     envVars:
