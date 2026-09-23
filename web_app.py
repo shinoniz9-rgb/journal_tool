@@ -16,6 +16,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from config import (
+    SYMBOL_CATEGORIES,
     DATA_DIR, CHARTS_DIR, DB_PATH, DEFAULT_PAIRS,
     TIMEFRAMES, TRADE_TYPES, MARKET_TYPES, TRADE_STATUSES,
     DEFAULT_STRATEGIES, DEFAULT_EMOTIONS
@@ -182,6 +183,7 @@ def auth_me():
 def get_config():
     return jsonify({
         "pairs": DEFAULT_PAIRS,
+        "symbol_categories": SYMBOL_CATEGORIES,
         "timeframes": TIMEFRAMES,
         "trade_types": TRADE_TYPES,
         "market_types": MARKET_TYPES,

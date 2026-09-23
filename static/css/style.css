@@ -2173,3 +2173,218 @@ html, body {
         padding: 24px 18px !important;
     }
 }
+
+
+/* ==========================================================================
+   ENHANCED TRADE MODAL & FOREX/XAU SYMBOL STYLES
+   ========================================================================== */
+
+/* High z-index for modal to guarantee it is always above bottom nav bar */
+.modal-backdrop {
+    z-index: 3500 !important;
+}
+
+/* Modal Dialog XL - Wider and more spacious for easy observation */
+.modal-dialog.modal-xl {
+    max-width: 1040px !important;
+    width: 95% !important;
+    max-height: 90vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+#trade-form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+.modal-body-scroll {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 22px 26px !important;
+    min-height: 0 !important;
+}
+
+.modal-footer {
+    flex-shrink: 0 !important;
+    padding: 16px 26px !important;
+    background: #13171F !important;
+    border-top: 1px solid var(--border-color) !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 12px !important;
+    z-index: 20 !important;
+}
+
+/* Symbol Combo & Quick Chips */
+.form-group-span-2 {
+    grid-column: span 2;
+}
+
+.symbol-combo-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.symbol-quick-select {
+    max-width: 230px !important;
+    background-color: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+}
+
+.badge-hint {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
+.quick-symbols-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.quick-symbol-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.quick-symbol-chip:hover {
+    background: rgba(0, 245, 155, 0.15);
+    color: #FFFFFF;
+    border-color: var(--win-green);
+    transform: translateY(-1px);
+}
+
+.quick-symbol-chip.chip-gold {
+    border-color: rgba(255, 209, 102, 0.45);
+    color: #FFD166;
+    background: rgba(255, 209, 102, 0.1);
+}
+
+.quick-symbol-chip.chip-gold:hover {
+    background: rgba(255, 209, 102, 0.25);
+    border-color: #FFD166;
+    color: #FFF;
+}
+
+.quick-symbol-chip.chip-forex {
+    border-color: rgba(0, 180, 216, 0.35);
+    color: #00B4D8;
+    background: rgba(0, 180, 216, 0.1);
+}
+
+.quick-symbol-chip.chip-forex:hover {
+    background: rgba(0, 180, 216, 0.25);
+    border-color: #00B4D8;
+    color: #FFF;
+}
+
+.quick-symbol-chip.chip-crypto {
+    border-color: rgba(0, 245, 155, 0.35);
+    color: var(--win-green);
+    background: rgba(0, 245, 155, 0.1);
+}
+
+.quick-symbol-chip.chip-crypto:hover {
+    background: rgba(0, 245, 155, 0.25);
+    border-color: var(--win-green);
+    color: #FFF;
+}
+
+.quick-symbol-chip.chip-index {
+    border-color: rgba(160, 174, 192, 0.35);
+    color: #CBD5E0;
+    background: rgba(160, 174, 192, 0.1);
+}
+
+@media (max-width: 768px) {
+    /* Mobile Modal Fix: Full visibility of Footer and Save Button */
+    .modal-backdrop {
+        z-index: 4000 !important;
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .modal-dialog.modal-xl {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 94vh !important;
+        max-height: 94vh !important;
+        border-radius: 22px 22px 0 0 !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    .modal-header {
+        flex-shrink: 0 !important;
+        padding: 14px 18px !important;
+        background: #151A22 !important;
+        border-bottom: 1px solid var(--border-color) !important;
+    }
+
+    .modal-body-scroll {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 14px 16px !important;
+        min-height: 0 !important;
+    }
+
+    .modal-footer {
+        flex-shrink: 0 !important;
+        padding: 12px 16px calc(14px + var(--sab, 10px)) 16px !important;
+        background: #11151E !important;
+        border-top: 1px solid rgba(0, 245, 155, 0.25) !important;
+        box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.7) !important;
+        display: flex !important;
+        gap: 10px !important;
+        z-index: 50 !important;
+    }
+
+    .modal-footer .btn {
+        flex: 1 !important;
+        height: 48px !important;
+        font-size: 15px !important;
+        font-weight: 800 !important;
+    }
+
+    .form-group-span-2 {
+        grid-column: span 1;
+    }
+
+    .symbol-combo-wrapper {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .symbol-quick-select {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+}

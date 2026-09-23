@@ -417,202 +417,233 @@
     <!-- MODAL: THÊM / CHỈNH SỬA LỆNH (TRADE FORM)  -->
     <!-- ========================================== -->
     <div class="modal-backdrop" id="modal-trade-form">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-header">
                 <div class="modal-title-group">
                     <span class="modal-icon">⚡</span>
                     <h2 class="modal-title" id="trade-modal-title">Ghi Nhận Lệnh Mới</h2>
                 </div>
-                <button class="modal-close-btn" id="btn-close-trade-modal">&times;</button>
+                <button type="button" class="modal-close-btn" id="btn-close-trade-modal">&times;</button>
             </div>
 
-            <form id="trade-form" class="modal-body" autocomplete="off">
-                <input type="hidden" id="form-trade-id" value="">
+            <form id="trade-form" autocomplete="off">
+                <div class="modal-body modal-body-scroll">
+                    <input type="hidden" id="form-trade-id" value="">
 
-                <div class="form-row form-grid-3">
-                    <div class="form-group">
-                        <label for="form-symbol" class="form-label required">Cặp Tiền (Coin)</label>
-                        <input type="text" id="form-symbol" class="form-control" placeholder="Ví dụ: BTC/USDT" required list="pairs-datalist">
-                        <datalist id="pairs-datalist"></datalist>
-                    </div>
+                    <!-- ROW 1: SYMBOL SELECTION WITH CATEGORIES & QUICK PILLS -->
+                    <div class="form-row form-grid-3">
+                        <div class="form-group form-group-span-2">
+                            <label for="form-symbol" class="form-label required">
+                                <span>Cặp Tiền / Mã Giao Dịch</span>
+                                <span class="badge-hint">🟡 Vàng (XAU) • 💱 Forex • ⚡ Crypto</span>
+                            </label>
+                            <div class="symbol-combo-wrapper">
+                                <input type="text" id="form-symbol" class="form-control mono font-bold" placeholder="Gõ hoặc chọn: XAU/USD, BTC/USDT, EUR/USD..." required list="pairs-datalist">
+                                <select id="form-symbol-select" class="form-control symbol-quick-select" title="Chọn nhanh theo danh mục">
+                                    <option value="">📂 Danh mục cặp tiền...</option>
+                                </select>
+                            </div>
+                            <datalist id="pairs-datalist"></datalist>
 
-                    <div class="form-group">
-                        <label class="form-label required">Vị Thế</label>
-                        <div class="segmented-control position-toggle">
-                            <input type="radio" name="trade_type" id="type-long" value="Long" checked>
-                            <label for="type-long" class="segment-label segment-long">
-                                <span>↗ LONG / MUA</span>
-                            </label>
-                            <input type="radio" name="trade_type" id="type-short" value="Short">
-                            <label for="type-short" class="segment-label segment-short">
-                                <span>↘ SHORT / BÁN</span>
-                            </label>
+                            <!-- QUICK SYMBOL CHIPS (ONE-TOUCH ON PHONE & PC) -->
+                            <div class="quick-symbols-bar" id="quick-symbols-bar">
+                                <button type="button" class="quick-symbol-chip chip-gold" data-symbol="XAU/USD">🟡 XAU/USD (Vàng)</button>
+                                <button type="button" class="quick-symbol-chip chip-crypto" data-symbol="BTC/USDT">⚡ BTC/USDT</button>
+                                <button type="button" class="quick-symbol-chip chip-crypto" data-symbol="ETH/USDT">⚡ ETH/USDT</button>
+                                <button type="button" class="quick-symbol-chip chip-crypto" data-symbol="SOL/USDT">⚡ SOL/USDT</button>
+                                <button type="button" class="quick-symbol-chip chip-forex" data-symbol="EUR/USD">💱 EUR/USD</button>
+                                <button type="button" class="quick-symbol-chip chip-forex" data-symbol="GBP/USD">💱 GBP/USD</button>
+                                <button type="button" class="quick-symbol-chip chip-forex" data-symbol="USD/JPY">💱 USD/JPY</button>
+                                <button type="button" class="quick-symbol-chip chip-index" data-symbol="US30">📈 US30</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required">Vị Thế</label>
+                            <div class="segmented-control position-toggle">
+                                <input type="radio" name="trade_type" id="type-long" value="Long" checked>
+                                <label for="type-long" class="segment-label segment-long">
+                                    <span>↗ LONG / MUA</span>
+                                </label>
+                                <input type="radio" name="trade_type" id="type-short" value="Short">
+                                <label for="type-short" class="segment-label segment-short">
+                                    <span>↘ SHORT / BÁN</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label required">Thị Trường & Đòn Bẩy</label>
-                        <div class="market-leverage-group">
-                            <select id="form-market-type" class="form-control">
-                                <option value="Futures">Futures</option>
-                                <option value="Spot">Spot</option>
+                    <!-- ROW 2: MARKET, LEVERAGE, STATUS, TIMEFRAME -->
+                    <div class="form-row form-grid-4">
+                        <div class="form-group">
+                            <label class="form-label required">Thị Trường & Đòn Bẩy</label>
+                            <div class="market-leverage-group">
+                                <select id="form-market-type" class="form-control">
+                                    <option value="Futures">Futures</option>
+                                    <option value="Spot">Spot</option>
+                                    <option value="Forex / CFD">Forex / Vàng</option>
+                                </select>
+                                <div class="leverage-input-wrapper" id="leverage-wrapper">
+                                    <span class="leverage-prefix">x</span>
+                                    <input type="number" id="form-leverage" class="form-control" value="10" min="1" max="500" inputmode="numeric">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-status" class="form-label required">Trạng Thái Lệnh</label>
+                            <select id="form-status" class="form-control">
+                                <option value="Open">Đang mở (Open)</option>
+                                <option value="Closed" selected>Đã đóng (Closed)</option>
+                                <option value="Cancelled">Đã hủy (Cancelled)</option>
                             </select>
-                            <div class="leverage-input-wrapper" id="leverage-wrapper">
-                                <span class="leverage-prefix">x</span>
-                                <input type="number" id="form-leverage" class="form-control" value="10" min="1" max="125" inputmode="numeric">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-timeframe" class="form-label">Khung Giờ (TF)</label>
+                            <select id="form-timeframe" class="form-control">
+                                <option value="M1">M1</option>
+                                <option value="M5">M5</option>
+                                <option value="M15">M15</option>
+                                <option value="M30">M30</option>
+                                <option value="H1" selected>H1</option>
+                                <option value="H4">H4</option>
+                                <option value="D1">D1</option>
+                                <option value="W1">W1</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-entry-date" class="form-label required">Thời Gian Vào</label>
+                            <input type="datetime-local" id="form-entry-date" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <!-- ROW 3: EXIT DATE, ENTRY PRICE, SL, TP -->
+                    <div class="form-row form-grid-4">
+                        <div class="form-group" id="exit-date-group">
+                            <label for="form-exit-date" class="form-label">Thời Gian Thoát</label>
+                            <input type="datetime-local" id="form-exit-date" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-entry-price" class="form-label required">Giá Vào (Entry Price)</label>
+                            <input type="number" step="any" id="form-entry-price" class="form-control mono font-bold" placeholder="0.00" required inputmode="decimal">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-stop-loss" class="form-label">Stop Loss (Cắt lỗ)</label>
+                            <input type="number" step="any" id="form-stop-loss" class="form-control mono text-loss" placeholder="0.00" inputmode="decimal">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-take-profit" class="form-label">Take Profit (Chốt lời)</label>
+                            <input type="number" step="any" id="form-take-profit" class="form-control mono text-win" placeholder="0.00" inputmode="decimal">
+                        </div>
+                    </div>
+
+                    <!-- ROW 4: EXIT PRICE, POSITION SIZE (MARGIN), FEES -->
+                    <div class="form-row form-grid-3">
+                        <div class="form-group" id="exit-price-group">
+                            <label for="form-exit-price" class="form-label">Giá Thoát Lệnh (Exit Price)</label>
+                            <input type="number" step="any" id="form-exit-price" class="form-control mono font-bold" placeholder="0.00" inputmode="decimal">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-position-size" class="form-label required">Ký Quỹ / Khối Lượng ($)</label>
+                            <input type="number" step="any" id="form-position-size" class="form-control mono" placeholder="Ví dụ: 100" required inputmode="decimal">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-fees" class="form-label">Phí Giao Dịch ($)</label>
+                            <input type="number" step="any" id="form-fees" class="form-control mono" placeholder="0.00" value="0.0">
+                        </div>
+                    </div>
+
+                    <!-- LIVE METRICS CARD (EXPANDED & BEAUTIFUL) -->
+                    <div class="live-calc-box">
+                        <div class="live-calc-header">
+                            <span class="live-dot"></span>
+                            <span class="live-title">TỰ ĐỘNG TÍNH TOÁN THEO THỜI GIAN THỰC (LIVE METRICS)</span>
+                        </div>
+                        <div class="live-calc-grid">
+                            <div class="live-item">
+                                <span class="live-item-label">Planned R:R:</span>
+                                <span class="live-item-val" id="live-planned-rr">0.00</span>
+                            </div>
+                            <div class="live-item">
+                                <span class="live-item-label">Realized R:R:</span>
+                                <span class="live-item-val" id="live-realized-rr">0.00</span>
+                            </div>
+                            <div class="live-item">
+                                <span class="live-item-label">Lợi Nhuận Net ($):</span>
+                                <span class="live-item-val font-bold" id="live-pnl">$0.00</span>
+                            </div>
+                            <div class="live-item">
+                                <span class="live-item-label">Tỷ Suất ROI (%):</span>
+                                <span class="live-item-val font-bold" id="live-roi">0.00%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ROW 5: STRATEGY & EMOTION -->
+                    <div class="form-row form-grid-2">
+                        <div class="form-group">
+                            <label for="form-strategy" class="form-label">Chiến Lược (Setup)</label>
+                            <select id="form-strategy" class="form-control"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-emotion" class="form-label">Tâm Lý Giao Dịch</label>
+                            <select id="form-emotion" class="form-control"></select>
+                        </div>
+                    </div>
+
+                    <!-- ROW 6: NOTES & LESSONS -->
+                    <div class="form-row form-grid-2">
+                        <div class="form-group">
+                            <label for="form-notes" class="form-label">Ghi Chú Phân Tích / Lý Do Vào</label>
+                            <textarea id="form-notes" class="form-control" rows="2" placeholder="Tại sao vào lệnh này? Kháng cự/hỗ trợ, mô hình giá..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-lessons" class="form-label">Bài Học / Sai Lầm Rút Ra</label>
+                            <textarea id="form-lessons" class="form-control" rows="2" placeholder="Có tuân thủ kế hoạch không? Lỗi gì cần khắc phục?"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- ROW 7: CHART DROPZONE -->
+                    <div class="form-group">
+                        <label class="form-label">Ảnh Biểu Đồ TradingView</label>
+                        <div class="chart-dropzone" id="chart-dropzone" tabindex="0">
+                            <input type="hidden" id="form-chart-path" value="">
+                            
+                            <div class="dropzone-idle" id="dropzone-idle">
+                                <div class="dropzone-icon">📋</div>
+                                <div class="dropzone-text">
+                                    <strong>Nhấn Ctrl + V để Dán Ảnh Biểu Đồ Trực Tiếp</strong>
+                                    <span>hoặc kéo thả ảnh vào đây, hoặc <span class="browse-link">chọn file từ máy</span></span>
+                                </div>
+                                <button type="button" class="btn-mobile-camera" id="btn-mobile-camera">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                    <span>📸 Chụp ảnh / Chọn từ thư viện điện thoại</span>
+                                </button>
+                                <input type="file" id="file-chart-input" accept="image/*" style="display: none;">
+                            </div>
+
+                            <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
+                                <img id="preview-chart-img" src="" alt="TradingView Chart">
+                                <button type="button" class="btn-remove-chart" id="btn-remove-chart" title="Xóa ảnh">&times;</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-row form-grid-4">
-                    <div class="form-group">
-                        <label for="form-status" class="form-label required">Trạng Thái Lệnh</label>
-                        <select id="form-status" class="form-control">
-                            <option value="Open">Đang mở (Open)</option>
-                            <option value="Closed" selected>Đã đóng (Closed)</option>
-                            <option value="Cancelled">Đã hủy (Cancelled)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-timeframe" class="form-label">Khung Giờ (TF)</label>
-                        <select id="form-timeframe" class="form-control">
-                            <option value="M5">M5</option>
-                            <option value="M15">M15</option>
-                            <option value="M30">M30</option>
-                            <option value="H1" selected>H1</option>
-                            <option value="H4">H4</option>
-                            <option value="D1">D1</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-entry-date" class="form-label required">Thời Gian Vào</label>
-                        <input type="datetime-local" id="form-entry-date" class="form-control" required>
-                    </div>
-
-                    <div class="form-group" id="exit-date-group">
-                        <label for="form-exit-date" class="form-label">Thời Gian Thoát</label>
-                        <input type="datetime-local" id="form-exit-date" class="form-control">
-                    </div>
-                </div>
-
-                <div class="form-row form-grid-3">
-                    <div class="form-group">
-                        <label for="form-entry-price" class="form-label required">Giá Vào (Entry Price)</label>
-                        <input type="number" step="any" id="form-entry-price" class="form-control mono" placeholder="0.00" required inputmode="decimal">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-stop-loss" class="form-label">Stop Loss (Cắt lỗ)</label>
-                        <input type="number" step="any" id="form-stop-loss" class="form-control mono text-loss" placeholder="0.00" inputmode="decimal">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-take-profit" class="form-label">Take Profit (Chốt lời)</label>
-                        <input type="number" step="any" id="form-take-profit" class="form-control mono text-win" placeholder="0.00" inputmode="decimal">
-                    </div>
-                </div>
-
-                <div class="form-row form-grid-3">
-                    <div class="form-group" id="exit-price-group">
-                        <label for="form-exit-price" class="form-label">Giá Thoát Lệnh (Exit Price)</label>
-                        <input type="number" step="any" id="form-exit-price" class="form-control mono" placeholder="0.00" inputmode="decimal">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-position-size" class="form-label required">Ký Quỹ / Margin ($)</label>
-                        <input type="number" step="any" id="form-position-size" class="form-control mono" placeholder="Ví dụ: 100" required inputmode="decimal">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-fees" class="form-label">Phí Giao Dịch ($)</label>
-                        <input type="number" step="any" id="form-fees" class="form-control mono" placeholder="0.00" value="0.0">
-                    </div>
-                </div>
-
-                <!-- LIVE METRICS -->
-                <div class="live-calc-box">
-                    <div class="live-calc-header">
-                        <span class="live-dot"></span>
-                        <span class="live-title">TỰ ĐỘNG TÍNH TOÁN (LIVE METRICS)</span>
-                    </div>
-                    <div class="live-calc-grid">
-                        <div class="live-item">
-                            <span class="live-item-label">Planned R:R:</span>
-                            <span class="live-item-val" id="live-planned-rr">0.00</span>
-                        </div>
-                        <div class="live-item">
-                            <span class="live-item-label">Realized R:R:</span>
-                            <span class="live-item-val" id="live-realized-rr">0.00</span>
-                        </div>
-                        <div class="live-item">
-                            <span class="live-item-label">Lợi Nhuận Net ($):</span>
-                            <span class="live-item-val font-bold" id="live-pnl">$0.00</span>
-                        </div>
-                        <div class="live-item">
-                            <span class="live-item-label">Tỷ Suất ROI (%):</span>
-                            <span class="live-item-val font-bold" id="live-roi">0.00%</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-row form-grid-2">
-                    <div class="form-group">
-                        <label for="form-strategy" class="form-label">Chiến Lược (Setup)</label>
-                        <select id="form-strategy" class="form-control"></select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-emotion" class="form-label">Tâm Lý Giao Dịch</label>
-                        <select id="form-emotion" class="form-control"></select>
-                    </div>
-                </div>
-
-                <div class="form-row form-grid-2">
-                    <div class="form-group">
-                        <label for="form-notes" class="form-label">Ghi Chú Phân Tích / Lý Do Vào</label>
-                        <textarea id="form-notes" class="form-control" rows="2" placeholder="Tại sao vào lệnh này? Kháng cự/hỗ trợ, mô hình giá..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="form-lessons" class="form-label">Bài Học / Sai Lầm Rút Ra</label>
-                        <textarea id="form-lessons" class="form-control" rows="2" placeholder="Có tuân thủ kế hoạch không? Lỗi gì cần khắc phục?"></textarea>
-                    </div>
-                </div>
-
-                <!-- CHART IMAGE -->
-                <div class="form-group">
-                    <label class="form-label">Ảnh Biểu Đồ TradingView</label>
-                    <div class="chart-dropzone" id="chart-dropzone" tabindex="0">
-                        <input type="hidden" id="form-chart-path" value="">
-                        
-                        <div class="dropzone-idle" id="dropzone-idle">
-                            <div class="dropzone-icon">📋</div>
-                            <div class="dropzone-text">
-                                <strong>Nhấn Ctrl + V để Dán Ảnh Biểu Đồ Trực Tiếp</strong>
-                                <span>hoặc kéo thả ảnh vào đây, hoặc <span class="browse-link">chọn file từ máy</span></span>
-                            </div>
-                            <button type="button" class="btn-mobile-camera" id="btn-mobile-camera">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                                <span>📸 Chụp ảnh / Chọn từ thư viện iPhone</span>
-                            </button>
-                            </div>
-                            <input type="file" id="file-chart-input" accept="image/*" style="display: none;">
-                        </div>
-
-                        <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
-                            <img id="preview-chart-img" src="" alt="TradingView Chart">
-                            <button type="button" class="btn-remove-chart" id="btn-remove-chart" title="Xóa ảnh">&times;</button>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- STICKY MODAL FOOTER - ALWAYS VISIBLE -->
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="btn-cancel-trade">Hủy Bỏ</button>
                     <button type="submit" class="btn btn-primary" id="btn-save-trade">
-                        <span id="btn-save-text">Lưu Lệnh Vào Nhật Ký</span>
+                        <span id="btn-save-text">💾 Lưu Lệnh Vào Nhật Ký</span>
                     </button>
                 </div>
             </form>

@@ -326,16 +326,58 @@ document.addEventListener("DOMContentLoaded", () => {
 
             elements.pairsDatalist.innerHTML = "";
             elements.filterSymbol.innerHTML = '<option value="Tất cả">Tất cả Cặp tiền</option>';
-            data.pairs.forEach(pair => {
-                const opt = document.createElement("option");
-                opt.value = pair;
-                elements.pairsDatalist.appendChild(opt);
+            
+            const formSymbolSelect = document.getElementById("form-symbol-select");
+            if (formSymbolSelect) {
+                formSymbolSelect.innerHTML = '<option value="">📂 Danh mục cặp tiền...</option>';
+            }
 
-                const filterOpt = document.createElement("option");
-                filterOpt.value = pair;
-                filterOpt.textContent = pair;
-                elements.filterSymbol.appendChild(filterOpt);
-            });
+            if (data.symbol_categories) {
+                for (const [category, pairs] of Object.entries(data.symbol_categories)) {
+                    // Filter dropdown optgroup
+                    const filterGrp = document.createElement("optgroup");
+                    filterGrp.label = category;
+
+                    // Form quick select optgroup
+                    const formGrp = document.createElement("optgroup");
+                    formGrp.label = category;
+
+                    pairs.forEach(pair => {
+                        // Datalist
+                        const opt = document.createElement("option");
+                        opt.value = pair;
+                        elements.pairsDatalist.appendChild(opt);
+
+                        // Filter
+                        const fOpt = document.createElement("option");
+                        fOpt.value = pair;
+                        fOpt.textContent = pair;
+                        filterGrp.appendChild(fOpt);
+
+                        // Form select
+                        const sOpt = document.createElement("option");
+                        sOpt.value = pair;
+                        sOpt.textContent = pair;
+                        formGrp.appendChild(sOpt);
+                    });
+
+                    elements.filterSymbol.appendChild(filterGrp);
+                    if (formSymbolSelect) {
+                        formSymbolSelect.appendChild(formGrp);
+                    }
+                }
+            } else {
+                data.pairs.forEach(pair => {
+                    const opt = document.createElement("option");
+                    opt.value = pair;
+                    elements.pairsDatalist.appendChild(opt);
+
+                    const filterOpt = document.createElement("option");
+                    filterOpt.value = pair;
+                    filterOpt.textContent = pair;
+                    elements.filterSymbol.appendChild(filterOpt);
+                });
+            }
 
             elements.formStrategy.innerHTML = '<option value="">-- Chọn chiến lược --</option>';
             elements.filterStrategy.innerHTML = '<option value="Tất cả">Tất cả Chiến lược</option>';
@@ -1357,6 +1399,42 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.btnEmptyAddTrade.addEventListener("click", openAddModal);
         elements.btnCloseTradeModal.addEventListener("click", closeTradeModal);
         elements.btnCancelTrade.addEventListener("click", closeTradeModal);
+
+        // Quick Symbol Chips & Categorized Select Wiring
+        const formSymbolSelectEl = document.getElementById("form-symbol-select");
+        if (formSymbolSelectEl) {
+            formSymbolSelectEl.addEventListener("change", () => {
+                if (formSymbolSelectEl.value) {
+                    elements.formSymbol.value = formSymbolSelectEl.value;
+                    const val = formSymbolSelectEl.value.toUpperCase();
+                    if (val.includes("XAU") || val.includes("XAG") || val.includes("OIL") || (!val.includes("USDT") && val.includes("/"))) {
+                        if (elements.formMarketType) elements.formMarketType.value = "Forex / CFD";
+                    } else {
+                        if (elements.formMarketType) elements.formMarketType.value = "Futures";
+                    }
+                    elements.formSymbol.dispatchEvent(new Event("input"));
+                }
+            });
+        }
+
+        document.querySelectorAll(".quick-symbol-chip").forEach(chip => {
+            chip.addEventListener("click", () => {
+                const sym = chip.getAttribute("data-symbol");
+                if (sym) {
+                    elements.formSymbol.value = sym;
+                    const val = sym.toUpperCase();
+                    if (val.includes("XAU") || val.includes("XAG") || val.includes("OIL") || (!val.includes("USDT") && val.includes("/"))) {
+                        if (elements.formMarketType) elements.formMarketType.value = "Forex / CFD";
+                    } else {
+                        if (elements.formMarketType) elements.formMarketType.value = "Futures";
+                    }
+                    elements.formSymbol.dispatchEvent(new Event("input"));
+                    elements.formSymbol.style.boxShadow = "0 0 10px rgba(0, 245, 155, 0.5)";
+                    setTimeout(() => { elements.formSymbol.style.boxShadow = ""; }, 300);
+                }
+            });
+        });
+
 
         // Mobile Navigation & View Switcher Wiring
         const mobileNavItems = document.querySelectorAll(".mobile-nav-item");
