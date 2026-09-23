@@ -858,9 +858,10 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const dateStr = t.entry_date ? t.entry_date.substring(5, 16) : "-";
+            const displayId = (trades.length === 1 && t.id > 1) ? 1 : t.id;
 
             tr.innerHTML = `
-                <td class="mono text-muted">#${t.id}</td>
+                <td class="mono text-muted">#${displayId}</td>
                 <td><strong class="font-bold">${t.symbol}</strong> <span class="text-muted" style="font-size:11px;">${t.timeframe || ''}</span></td>
                 <td>${typeBadge}</td>
                 <td>${statusBadge}</td>
@@ -1082,20 +1083,33 @@ document.addEventListener("DOMContentLoaded", () => {
             if (info) {
                 const isWin = info.pnl >= 0;
                 cell.classList.add(isWin ? "day-win" : "day-loss");
+                
+                const absPnl = Math.abs(info.pnl);
+                let pnlStr = "";
+                if (absPnl >= 1000) {
+                    pnlStr = (info.pnl / 1000).toFixed(1) + "k";
+                } else if (absPnl >= 100) {
+                    pnlStr = info.pnl.toFixed(0);
+                } else {
+                    pnlStr = info.pnl.toFixed(1);
+                }
+                const formattedPnl = (isWin ? "+" : "") + "$" + pnlStr;
+
                 cell.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="cal-cell-top">
                         <span class="cal-day-number font-bold">${d}</span>
-                        <span class="cal-day-trades">${info.wins}W - ${info.losses}L</span>
+                        <span class="cal-day-trades hide-mobile">${info.wins}W-${info.losses}L</span>
                     </div>
                     <div class="cal-day-pnl ${isWin ? 'text-win' : 'text-loss'}">
-                        ${isWin ? '+' : ''}$${info.pnl.toFixed(1)}
+                        ${formattedPnl}
                     </div>
-                    <div class="cal-day-trades">${info.count} lệnh</div>
+                    <div class="cal-day-trades hide-mobile">${info.count} lệnh</div>
                 `;
             } else {
                 cell.innerHTML = `
-                    <span class="cal-day-number">${d}</span>
-                    <div class="text-muted" style="font-size:11px; margin-top:auto;">-</div>
+                    <div class="cal-cell-top">
+                        <span class="cal-day-number">${d}</span>
+                    </div>
                 `;
             }
 

@@ -94,6 +94,24 @@ class DatabaseManager:
                 except Exception:
                     pass
 
+            # 5. Tự động reset bộ đếm auto-increment về 1 nếu bảng trades rỗng hoặc chỉ có 1 lệnh bị nhảy ID
+            cursor.execute("SELECT COUNT(*) FROM trades")
+            trade_count = cursor.fetchone()[0]
+            if trade_count == 0:
+                try:
+                    cursor.execute("DELETE FROM sqlite_sequence WHERE name = 'trades'")
+                except Exception:
+                    pass
+            elif trade_count == 1:
+                try:
+                    cursor.execute("SELECT id FROM trades LIMIT 1")
+                    single_id = cursor.fetchone()[0]
+                    if single_id != 1:
+                        cursor.execute("UPDATE trades SET id = 1 WHERE id = ?", (single_id,))
+                        cursor.execute("UPDATE sqlite_sequence SET seq = 1 WHERE name = 'trades'")
+                except Exception:
+                    pass
+
             conn.commit()
 
         self._ensure_default_user()
@@ -221,6 +239,14 @@ class DatabaseManager:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Nếu chưa có lệnh nào, tự động reset sequence để lệnh đầu tiên luôn bắt đầu từ 1
+            cursor.execute("SELECT COUNT(*) FROM trades")
+            if cursor.fetchone()[0] == 0:
+                try:
+                    cursor.execute("DELETE FROM sqlite_sequence WHERE name = 'trades'")
+                except Exception:
+                    pass
+
             cursor.execute("""
             INSERT INTO trades (
                 user_id, symbol, trade_type, market_type, status, timeframe,
@@ -319,7 +345,16 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM trades WHERE id = ? AND user_id = ?", (trade_id, user_id))
             conn.commit()
-            return cursor.rowcount > 0
+            success = cursor.rowcount > 0
+            # Nếu xóa xong không còn lệnh nào, reset sequence để lệnh kế tiếp bắt đầu từ 1
+            cursor.execute("SELECT COUNT(*) FROM trades")
+            if cursor.fetchone()[0] == 0:
+                try:
+                    cursor.execute("DELETE FROM sqlite_sequence WHERE name = 'trades'")
+                    conn.commit()
+                except Exception:
+                    pass
+            return success
 
     def get_trade(self, user_id: int, trade_id: int) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:

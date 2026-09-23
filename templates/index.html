@@ -18,7 +18,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260923_v6">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260923_v10">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -87,34 +87,34 @@
             <!-- TAB 1: DASHBOARD -->
             <section class="tab-content active" id="view-dashboard">
                 <div class="kpi-grid">
-                    <!-- KPI 1: TỔNG VỐN BAN ĐẦU (CHO PHÉP NHẬP / CHỈNH SỬA) -->
+                    <!-- KPI 1: VỐN BAN ĐẦU -->
                     <div class="kpi-card card-glow" id="kpi-capital-card">
                         <div class="kpi-header">
-                            <span class="kpi-label">Tổng Vốn Ban Đầu</span>
-                            <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="kpi-label">Vốn Ban Đầu</span>
+                            <div class="kpi-header-action-group">
                                 <button type="button" class="btn-icon-tiny" id="btn-edit-capital" title="Nhấp để thay đổi số vốn ban đầu">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                 </button>
                                 <span class="kpi-icon">💼</span>
                             </div>
                         </div>
                         <div id="capital-display-view">
                             <div class="kpi-value text-accent" id="kpi-initial-capital">$1,000.00</div>
-                            <div class="kpi-subtext" style="cursor: pointer;" id="btn-quick-edit-capital">Nhấp ✏️ để cập nhật vốn</div>
+                            <div class="kpi-subtext" style="cursor: pointer;" id="btn-quick-edit-capital">Nhấp ✏️ để sửa vốn</div>
                         </div>
-                        <div id="capital-edit-view" style="display: none; margin-top: 6px;">
-                            <div style="display: flex; gap: 6px; align-items: center;">
-                                <input type="number" step="any" id="input-initial-capital" class="form-control mono font-bold" placeholder="Nhập số vốn ($)" style="padding: 6px 10px; font-size: 15px; height: 36px;">
-                                <button type="button" class="btn btn-primary" id="btn-save-capital" style="padding: 6px 12px; height: 36px; font-size: 13px;">Lưu</button>
-                                <button type="button" class="btn btn-ghost" id="btn-cancel-capital" style="padding: 6px 8px; height: 36px; font-size: 13px;">✕</button>
+                        <div id="capital-edit-view" style="display: none; margin-top: 4px;">
+                            <div style="display: flex; gap: 4px; align-items: center;">
+                                <input type="number" step="any" id="input-initial-capital" class="form-control mono font-bold" placeholder="Số vốn ($)" style="padding: 4px 6px; font-size: 13px; height: 30px; min-width: 0;">
+                                <button type="button" class="btn btn-primary" id="btn-save-capital" style="padding: 4px 8px; height: 30px; font-size: 11px;">Lưu</button>
+                                <button type="button" class="btn btn-ghost" id="btn-cancel-capital" style="padding: 4px 6px; height: 30px; font-size: 11px;">✕</button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- KPI 2: VỐN CÒN LẠI (HIỆN TẠI) = VỐN BAN ĐẦU + NET PNL -->
+                    <!-- KPI 2: VỐN HIỆN TẠI -->
                     <div class="kpi-card card-glow" id="kpi-current-capital-card">
                         <div class="kpi-header">
-                            <span class="kpi-label">Vốn Còn Lại (Hiện Tại)</span>
+                            <span class="kpi-label">Vốn Hiện Tại</span>
                             <span class="kpi-icon">💎</span>
                         </div>
                         <div class="kpi-value font-bold" id="kpi-current-capital">$1,000.00</div>
@@ -123,6 +123,7 @@
                         </div>
                     </div>
 
+                    <!-- KPI 3: TỔNG NET PNL -->
                     <div class="kpi-card" id="kpi-net-pnl-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Tổng Net PnL</span>
@@ -132,9 +133,10 @@
                         <div class="kpi-subtext" id="kpi-pnl-sub">0 lệnh đã đóng</div>
                     </div>
 
+                    <!-- KPI 4: TỶ LỆ THẮNG -->
                     <div class="kpi-card">
                         <div class="kpi-header">
-                            <span class="kpi-label">Tỷ Lệ Thắng (Win Rate)</span>
+                            <span class="kpi-label">Tỷ Lệ Thắng</span>
                             <span class="kpi-icon">🎯</span>
                         </div>
                         <div class="kpi-value" id="kpi-win-rate">0.0%</div>
@@ -145,41 +147,45 @@
                         </div>
                     </div>
 
+                    <!-- KPI 5: PROFIT FACTOR -->
                     <div class="kpi-card">
                         <div class="kpi-header">
-                            <span class="kpi-label">Profit Factor (PF)</span>
+                            <span class="kpi-label">Profit Factor</span>
                             <span class="kpi-icon">📈</span>
                         </div>
                         <div class="kpi-value" id="kpi-profit-factor">0.00</div>
                         <div class="kpi-subtext">
-                            Tổng lãi: <span class="text-win" id="kpi-total-profit">$0</span> | Lỗ: <span class="text-loss" id="kpi-total-loss">$0</span>
+                            Lãi: <span class="text-win" id="kpi-total-profit">$0</span> | Lỗ: <span class="text-loss" id="kpi-total-loss">$0</span>
                         </div>
                     </div>
 
+                    <!-- KPI 6: LÃI TB / LỖ TB -->
                     <div class="kpi-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Lãi TB / Lỗ TB</span>
                             <span class="kpi-icon">⚖️</span>
                         </div>
-                        <div class="kpi-value">
+                        <div class="kpi-value kpi-val-split">
                             <span class="text-win" id="kpi-avg-win">+$0</span> / 
                             <span class="text-loss" id="kpi-avg-loss">-$0</span>
                         </div>
                         <div class="kpi-subtext" id="kpi-win-loss-ratio">Tỷ lệ Lãi:Lỗ: 0.0x</div>
                     </div>
 
+                    <!-- KPI 7: R:R TRUNG BÌNH -->
                     <div class="kpi-card">
                         <div class="kpi-header">
-                            <span class="kpi-label">R:R Thực Tế TB</span>
+                            <span class="kpi-label">R:R Trung Bình</span>
                             <span class="kpi-icon">🏹</span>
                         </div>
                         <div class="kpi-value text-accent" id="kpi-avg-rr">1 : 0.00</div>
-                        <div class="kpi-subtext">Tỷ lệ Risk:Reward thực tế</div>
+                        <div class="kpi-subtext">Risk:Reward thực tế</div>
                     </div>
 
+                    <!-- KPI 8: CHUỖI W / L MAX -->
                     <div class="kpi-card">
                         <div class="kpi-header">
-                            <span class="kpi-label">Chuỗi Thắng / Thua Max</span>
+                            <span class="kpi-label">Chuỗi W / L Max</span>
                             <span class="kpi-icon">🔥</span>
                         </div>
                         <div class="kpi-value">
@@ -294,13 +300,15 @@
                 <div class="calendar-card">
                     <div class="calendar-header">
                         <div class="calendar-month-selector">
-                            <button class="btn btn-icon" id="btn-cal-prev">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-                            </button>
-                            <h2 class="calendar-month-title" id="cal-month-title">Tháng 09 / 2026</h2>
-                            <button class="btn btn-icon" id="btn-cal-next">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                            </button>
+                            <div class="month-nav-group">
+                                <button class="btn btn-icon" id="btn-cal-prev" title="Tháng trước">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                                </button>
+                                <h2 class="calendar-month-title" id="cal-month-title">Tháng 09 / 2026</h2>
+                                <button class="btn btn-icon" id="btn-cal-next" title="Tháng sau">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
+                            </div>
                             <button class="btn btn-ghost" id="btn-cal-today">Hôm nay</button>
                         </div>
 
@@ -655,6 +663,6 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/app.js?v=20260923_v8"></script>
+    <script src="/static/js/app.js?v=20260923_v10"></script>
 </body>
 </html>
