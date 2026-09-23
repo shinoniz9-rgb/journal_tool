@@ -26,63 +26,13 @@ AUTHOR = "Antigravity & Trader"
 
 # Danh sách gợi ý mặc định
 
-# Danh sách mã giao dịch phân loại theo thị trường (Forex, Vàng, Crypto, Chỉ số)
+# Danh sách mã giao dịch (Chỉ giữ BTC/USDT và XAU/USD)
 SYMBOL_CATEGORIES = {
-    "🟡 Vàng & Hàng Hóa": [
-        "XAU/USD",  # Vàng (Gold / USD)
-        "XAG/USD",  # Bạc (Silver / USD)
-        "USOIL",    # Dầu thô WTI
-        "UKOIL",    # Dầu Brent
-    ],
-    "💱 Ngoại Hối Chính (Forex Majors)": [
-        "EUR/USD",
-        "GBP/USD",
-        "USD/JPY",
-        "USD/CHF",
-        "AUD/USD",
-        "USD/CAD",
-        "NZD/USD",
-    ],
-    "💱 Ngoại Hối Chéo (Forex Crosses)": [
-        "EUR/JPY",
-        "GBP/JPY",
-        "EUR/GBP",
-        "AUD/JPY",
-        "CAD/JPY",
-        "CHF/JPY",
-        "GBP/AUD",
-        "EUR/AUD",
-    ],
-    "⚡ Tiền Mã Hóa (Crypto)": [
-        "BTC/USDT",
-        "ETH/USDT",
-        "SOL/USDT",
-        "BNB/USDT",
-        "XRP/USDT",
-        "DOGE/USDT",
-        "ADA/USDT",
-        "AVAX/USDT",
-        "LINK/USDT",
-        "NEAR/USDT",
-        "SUI/USDT",
-        "APT/USDT",
-        "ARB/USDT",
-        "OP/USDT",
-        "PEPE/USDT",
-    ],
-    "📈 Chỉ Số Chứng Khoán (Indices)": [
-        "US30",     # Dow Jones
-        "NAS100",   # Nasdaq 100
-        "SPX500",   # S&P 500
-        "GER40",    # DAX Đức
-    ]
+    "⚡ Tiền Mã Hóa (Crypto)": ["BTC/USDT"],
+    "🟡 Vàng (Gold)": ["XAU/USD"]
 }
 
-# Danh sách tất cả các cặp mặc định (XAU/USD và BTC/USDT ưu tiên hàng đầu)
-DEFAULT_PAIRS = []
-for _cat_pairs in SYMBOL_CATEGORIES.values():
-    DEFAULT_PAIRS.extend(_cat_pairs)
-
+DEFAULT_PAIRS = ["BTC/USDT", "XAU/USD"]
 
 TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"]
 
