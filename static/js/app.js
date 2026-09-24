@@ -953,6 +953,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         });
 
+        // ĐƯA CÁC HÀNG VÀO BẢNG VÀ CONTAINER THẺ ĐỂ HIỂN THỊ TRÊN MÀN HÌNH
+        elements.tradesTbody.appendChild(tbodyFrag);
+        if (elements.tradesCardsContainer) {
+            elements.tradesCardsContainer.appendChild(cardsFrag);
+        }
+
         document.querySelectorAll(".chart-thumb").forEach(img => {
             img.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -1853,13 +1859,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 localStorage.setItem("preferred_trade_view", "table");
             });
 
-            // Initialize view mode based on device screen width
+            // Khởi tạo chế độ xem phù hợp cho từng thiết bị
+            const savedView = localStorage.getItem("preferred_trade_view");
             if (window.innerWidth <= 768) {
-                const saved = localStorage.getItem("preferred_trade_view");
-                if (saved === "table") {
+                if (savedView === "table") {
                     btnViewTable.click();
                 } else {
                     btnViewCards.click();
+                }
+            } else {
+                if (savedView === "cards") {
+                    btnViewCards.click();
+                } else {
+                    btnViewTable.click();
                 }
             }
         }
