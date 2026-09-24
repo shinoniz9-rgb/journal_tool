@@ -256,13 +256,24 @@ def get_stats():
     mt5_account_id = request.args.get("mt5_account_id")
     trades = db.get_all_trades(user_id=user_id, order_desc=False, mt5_account_id=mt5_account_id)
     
-    # Tự động lấy số vốn thực tế từ tài khoản MT5 nếu đang chọn tài khoản cụ thể
+    # 1. Vốn ban đầu mặc định của User
     initial_capital = db.get_user_capital(user_id=user_id)
+
+    # 2. Thuật toán truy ngược Vốn Ban Đầu khi chọn một tài khoản MT5 / Sàn cụ thể:
     if mt5_account_id and str(mt5_account_id).lower() not in ("all", "", "none"):
         try:
             acc = db.get_mt5_account(account_id=int(mt5_account_id), user_id=user_id)
             if acc and float(acc.get("balance", 0)) > 0:
-                initial_capital = float(acc["balance"])
+                current_balance = float(acc["balance"])
+                # Tổng Net PnL của tất cả các lệnh đã đóng thuộc tài khoản này
+                account_closed_pnl = sum(
+                    float(t.get("pnl", 0) or 0)
+                    for t in trades
+                    if str(t.get("status", "")).lower() in ("closed", "đã đóng")
+                )
+                # Vốn Ban Đầu Gốc = Số Dư Hiện Tại - Tổng Net PnL các lệnh đã giao dịch
+                calculated_initial = round(current_balance - account_closed_pnl, 2)
+                initial_capital = max(1.0, calculated_initial)
         except Exception:
             pass
 
@@ -312,6 +323,16 @@ def add_trade():
     data = request.json or {}
     
     try:
+        # Hỗ trợ gán tài khoản MT5 / Sàn thủ công cho lệnh thêm tay
+        mt5_acc = data.get("mt5_account_id")
+        if mt5_acc in ("all", "none", "", None):
+            data["mt5_account_id"] = None
+        else:
+            try:
+                data["mt5_account_id"] = int(mt5_acc)
+            except (ValueError, TypeError):
+                data["mt5_account_id"] = None
+
         entry_price = float(data.get("entry_price", 0))
         exit_price = float(data["exit_price"]) if data.get("exit_price") not in (None, "") else None
         stop_loss = float(data["stop_loss"]) if data.get("stop_loss") not in (None, "") else None
@@ -357,6 +378,16 @@ def update_trade(trade_id):
         return jsonify({"error": "Không tìm thấy lệnh này"}), 404
 
     try:
+        if "mt5_account_id" in data:
+            mt5_acc = data.get("mt5_account_id")
+            if mt5_acc in ("all", "none", "", None):
+                data["mt5_account_id"] = None
+            else:
+                try:
+                    data["mt5_account_id"] = int(mt5_acc)
+                except (ValueError, TypeError):
+                    data["mt5_account_id"] = None
+
         entry_price = float(data.get("entry_price", existing.get("entry_price", 0)))
         exit_price = float(data["exit_price"]) if data.get("exit_price") not in (None, "") else None
         stop_loss = float(data["stop_loss"]) if data.get("stop_loss") not in (None, "") else None
@@ -488,14 +519,14 @@ def get_mt5_accounts():
 def add_mt5_account():
     user_id = get_current_user_id()
     data = request.json or {}
-    server = data.get("server", "").strip()
-    login = data.get("login", "").strip()
-    password = data.get("password", "").strip()
-    account_name = data.get("account_name", "").strip() or f"MT5 #{login}"
+    account_name = data.get("account_name", "").strip()
+    server = data.get("server", "").strip() or "Manual"
+    login = data.get("login", "").strip() or "MANUAL"
+    password = data.get("password", "").strip() or "manual"
     balance = float(data.get("balance", 0.0) or 0.0)
 
-    if not server or not login:
-        return jsonify({"error": "Vui lòng nhập Tên Server và Số tài khoản MT5"}), 400
+    if not account_name:
+        return jsonify({"error": "Vui lòng nhập Tên Gợi Nhớ cho tài khoản (ví dụ: Binance, Bybit, Exness...)"}), 400
 
     acc_id = db.add_mt5_account(
         user_id=user_id,
@@ -505,7 +536,7 @@ def add_mt5_account():
         password=password,
         balance=balance
     )
-    return jsonify({"success": True, "account_id": acc_id, "message": "Đã thêm tài khoản MT5 thành công!"}), 201
+    return jsonify({"success": True, "account_id": acc_id, "message": "Đã thêm tài khoản thành công!"}), 201
 
 @app.route("/api/mt5/accounts/<int:account_id>", methods=["DELETE"])
 @login_required
@@ -599,7 +630,21 @@ def mt5_webhook():
 
     entry_price = float(payload.get("entry_price") or payload.get("open_price") or payload.get("price") or 0.0)
     exit_price = float(payload.get("exit_price") or payload.get("close_price") or payload.get("price") or entry_price)
-    pnl = float(payload.get("profit") or payload.get("pnl") or 0.0)
+    
+    # Lấy thông tin Lợi nhuận gộp, Phí hoa hồng (commission) và Phí qua đêm (swap)
+    gross_pnl = float(payload.get("profit") or payload.get("pnl") or 0.0)
+    commission = float(payload.get("commission") or 0.0)
+    swap = float(payload.get("swap") or 0.0)
+    fee_val = float(payload.get("fees") or 0.0)
+
+    # Nếu payload gửi kèm net_profit thì ưu tiên lấy, nếu chưa có thì tự động tính:
+    if "net_profit" in payload:
+        net_pnl = float(payload["net_profit"])
+    else:
+        net_pnl = round(gross_pnl + commission + swap, 2)
+
+    if fee_val == 0.0 and (commission != 0.0 or swap != 0.0):
+        fee_val = round(abs(commission) + (abs(swap) if swap < 0 else 0.0), 2)
     
     # Tính ROI %
     pnl_percent = 0.0
@@ -650,8 +695,8 @@ def mt5_webhook():
         "take_profit": float(payload["take_profit"]) if payload.get("take_profit") else None,
         "position_size": float(payload.get("volume") or payload.get("lot") or 1.0),
         "risk_amount": 0.0,
-        "fees": 0.0,
-        "pnl": pnl,
+        "fees": fee_val,
+        "pnl": net_pnl,
         "pnl_percent": pnl_percent,
         "strategy": "MT5 Auto Sync",
         "emotion": "Disciplined",
@@ -664,7 +709,8 @@ def mt5_webhook():
         "message": "Đã ghi nhận lệnh MT5 thành công",
         "trade_id": trade_id,
         "symbol": symbol,
-        "pnl": pnl
+        "pnl": net_pnl,
+        "fees": fee_val
     }), 201
 
 

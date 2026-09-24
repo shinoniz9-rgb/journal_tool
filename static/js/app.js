@@ -82,6 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Form Inputs
         formTradeId: document.getElementById("form-trade-id"),
+        formAccountId: document.getElementById("form-account-id"),
         formSymbol: document.getElementById("form-symbol"),
         typeLong: document.getElementById("type-long"),
         typeShort: document.getElementById("type-short"),
@@ -1110,6 +1111,13 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.formLeverage.value = "10";
         elements.formMarketType.value = "Futures";
         elements.formSymbol.value = "BTC/USDT";
+        if (elements.formAccountId) {
+            if (state.currentMt5AccountId && state.currentMt5AccountId !== "all") {
+                elements.formAccountId.value = String(state.currentMt5AccountId);
+            } else {
+                elements.formAccountId.value = "";
+            }
+        }
         if (elements.formRiskAmount) elements.formRiskAmount.value = "";
         if (elements.formPlannedReward) elements.formPlannedReward.value = "$0.00";
 
@@ -1172,6 +1180,9 @@ document.addEventListener("DOMContentLoaded", () => {
             elements.formExitPrice.value = trade.exit_price || "";
             elements.formPositionSize.value = trade.position_size || "";
             elements.formFees.value = trade.fees || 0;
+            if (elements.formAccountId) {
+                elements.formAccountId.value = trade.mt5_account_id ? String(trade.mt5_account_id) : "";
+            }
 
             if (elements.formRiskAmount) {
                 elements.formRiskAmount.value = (trade.risk_amount && trade.risk_amount > 0) ? trade.risk_amount : "";
@@ -1209,7 +1220,9 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
 
         const tradeId = elements.formTradeId.value;
+        const accountId = elements.formAccountId ? elements.formAccountId.value : "";
         const payload = {
+            mt5_account_id: accountId ? parseInt(accountId) : null,
             symbol: elements.formSymbol.value.trim().toUpperCase(),
             trade_type: elements.typeLong.checked ? "Long" : "Short",
             market_type: elements.formMarketType.value,
@@ -1531,6 +1544,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 labelEl.textContent = `${activeAccount.account_name} ($${Number(activeAccount.balance || 0).toLocaleString("en-US", {maximumFractionDigits: 0})})`;
             } else {
                 labelEl.textContent = "Tất Cả Tài Khoản";
+            }
+        }
+
+        // Cập nhật options cho Dropdown Tài Khoản trong Modal Thêm/Sửa Lệnh
+        const formAccSelect = document.getElementById("form-account-id");
+        if (formAccSelect) {
+            const currentSelected = formAccSelect.value;
+            formAccSelect.innerHTML = '<option value="">-- Tài Khoản Chung (Mặc định) --</option>';
+            accounts.forEach(acc => {
+                const opt = document.createElement("option");
+                opt.value = acc.id;
+                opt.textContent = `📈 ${acc.account_name} (${acc.server})`;
+                formAccSelect.appendChild(opt);
+            });
+            if (currentSelected) {
+                formAccSelect.value = currentSelected;
             }
         }
     }

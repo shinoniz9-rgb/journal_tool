@@ -85,7 +85,16 @@ def main():
         # Chỉ lấy các lệnh đóng (DEAL_ENTRY_OUT hoặc DEAL_ENTRY_INOUT) có mã giao dịch
         if deal.entry in (mt5.DEAL_ENTRY_OUT, mt5.DEAL_ENTRY_INOUT) and deal.symbol:
             deal_time = datetime.fromtimestamp(deal.time).strftime("%Y-%m-%d %H:%M:%S")
-            trade_type = "BUY" if deal.type == mt5.DEAL_TYPE_BUY else "SELL"
+            # Tính toán chi phí sàn: Hoa hồng (Commission) và Phí qua đêm (Swap)
+            gross_profit = float(deal.profit)
+            commission = float(getattr(deal, "commission", 0.0) or 0.0)
+            swap = float(getattr(deal, "swap", 0.0) or 0.0)
+            fee = float(getattr(deal, "fee", 0.0) or 0.0)
+            
+            # Tổng phí giao dịch của lệnh
+            total_fees = round(abs(commission) + abs(fee) + (abs(swap) if swap < 0 else 0.0), 2)
+            # Lợi nhuận ròng thực nhận/mất vào tài khoản
+            net_profit = round(gross_profit + commission + swap + fee, 2)
 
             payload = {
                 "login": str(login_num),
@@ -96,7 +105,11 @@ def main():
                 "symbol": deal.symbol,
                 "entry_price": float(deal.price),
                 "exit_price": float(deal.price),
-                "profit": float(deal.profit),
+                "profit": float(gross_profit),
+                "commission": float(commission),
+                "swap": float(swap),
+                "fees": float(total_fees),
+                "net_profit": float(net_profit),
                 "volume": float(deal.volume),
                 "balance": float(current_balance),
                 "equity": float(current_equity),
@@ -107,8 +120,9 @@ def main():
             try:
                 res = requests.post(WEBHOOK_URL, json=payload, timeout=10)
                 if res.status_code == 201:
-                    pnl_str = f"+${deal.profit:.2f}" if deal.profit >= 0 else f"-${abs(deal.profit):.2f}"
-                    print(f"    [+] THÊM MỚI: {deal.symbol} {trade_type} | PnL: {pnl_str} | Vé #{deal.ticket} lúc {deal_time}")
+                    pnl_str = f"+${net_profit:.2f}" if net_profit >= 0 else f"-${abs(net_profit):.2f}"
+                    fee_info = f" (Phí: -${total_fees:.2f})" if total_fees > 0 else ""
+                    print(f"    [+] THÊM MỚI: {deal.symbol} {trade_type} | Net PnL: {pnl_str}{fee_info} | Vé #{deal.ticket} lúc {deal_time}")
                     acc_new += 1
                 elif res.status_code == 200:
                     acc_skipped += 1
