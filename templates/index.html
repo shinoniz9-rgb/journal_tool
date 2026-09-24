@@ -22,7 +22,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v22">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v23">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -289,6 +289,7 @@
                                 <th>Trạng Thái</th>
                                 <th>Giá Vào</th>
                                 <th>Giá Thoát</th>
+                                <th>Phí ($)</th>
                                 <th>Net PnL ($)</th>
                                 <th>ROI (%)</th>
                                 <th>R:R</th>
@@ -465,15 +466,19 @@
 
                 <!-- Form thêm tài khoản mới (MT5 hoặc sàn thủ công khác) -->
                 <form id="form-add-mt5" autocomplete="off">
-                    <h3 style="font-size: 13px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                    <h3 style="font-size: 13.5px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
                         <span>➕ Thêm Tài Khoản Mới (MT5 / Binance / Bybit...)</span>
                     </h3>
 
-                    <div class="form-group">
-                        <label for="mt5-account-name" class="form-label required">Tên Gợi Nhớ (Ví dụ: Exness Cá Nhân, Binance Futures, Quỹ FTMO...)</label>
-                        <input type="text" id="mt5-account-name" class="form-control" placeholder="vd: Binance Futures hoặc Exness Vàng" required>
+                    <!-- HÀNG 1: TÊN GỢI NHỚ -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mt5-account-name" class="form-label required">Tên Gợi Nhớ (Ví dụ: Exness Cá Nhân, Binance Futures, Quỹ FTMO...)</label>
+                            <input type="text" id="mt5-account-name" class="form-control" placeholder="vd: Binance Futures hoặc Exness Vàng" required>
+                        </div>
                     </div>
 
+                    <!-- HÀNG 2: SERVER & SỐ TÀI KHOẢN -->
                     <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="mt5-server" class="form-label">Tên Server / Tên Sàn</label>
@@ -485,6 +490,7 @@
                         </div>
                     </div>
 
+                    <!-- HÀNG 3: MẬT KHẨU & SỐ VỐN BAN ĐẦU -->
                     <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="mt5-password" class="form-label">Mật Khẩu Investor</label>
@@ -496,17 +502,20 @@
                         </div>
                     </div>
 
-                    <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.4;">
-                        💡 <em>Với tài khoản nhập tay (Binance, Bybit...): Chỉ cần điền Tên và Số vốn ban đầu, bỏ qua mật khẩu.</em>
-                    </div>
+                    <!-- HÀNG 4: HƯỚNG DẪN / GỢI Ý & NÚT LƯU -->
+                    <div class="form-row" style="margin-bottom: 0;">
+                        <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; padding: 10px 14px; background: rgba(56, 189, 248, 0.05); border: 1px dashed rgba(56, 189, 248, 0.22); border-radius: var(--radius-sm); margin-bottom: 16px;">
+                            💡 <em>Với tài khoản nhập tay (Binance, Bybit...): Chỉ cần điền Tên và Số vốn ban đầu, bỏ qua mật khẩu.</em>
+                        </div>
 
-                    <div class="auth-alert" id="mt5-form-alert" style="display: none; margin-top: 10px;"></div>
+                        <div class="auth-alert" id="mt5-form-alert" style="display: none; margin-bottom: 12px;"></div>
 
-                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-                        <button type="button" class="btn btn-secondary" id="btn-cancel-mt5">Đóng</button>
-                        <button type="submit" class="btn btn-primary" id="btn-save-mt5-account">
-                            <span>➕ Lưu Tài Khoản</span>
-                        </button>
+                        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                            <button type="button" class="btn btn-secondary" id="btn-cancel-mt5">Đóng</button>
+                            <button type="submit" class="btn btn-primary" id="btn-save-mt5-account">
+                                <span>➕ Lưu Tài Khoản</span>
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -532,8 +541,6 @@
                     <!-- HIDDEN DEFAULT INPUTS -->
                     <input type="hidden" id="form-market-type" value="Futures">
                     <input type="hidden" id="form-leverage" value="10">
-                    <input type="hidden" id="form-position-size" value="100">
-                    <input type="hidden" id="form-fees" value="0">
                     <input type="hidden" id="form-strategy" value="">
                     <input type="hidden" id="form-emotion" value="">
                     <input type="hidden" id="form-notes" value="">
@@ -662,6 +669,25 @@
                         </div>
                     </div>
 
+                    <!-- PHÍ GIAO DỊCH, PHÍ QUA ĐÊM (SWAP) & KHỐI LƯỢNG / KÝ QUỸ -->
+                    <div class="form-row form-grid-2">
+                        <div class="form-group">
+                            <label for="form-fees" class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Phí Giao Dịch & Swap ($)</span>
+                                <span style="font-size:11px; color:var(--text-muted);">Hoa hồng / Phí sàn</span>
+                            </label>
+                            <input type="number" step="any" id="form-fees" class="form-control mono" placeholder="0.00" value="0" inputmode="decimal">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="form-position-size" class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Khối Lượng / Ký Quỹ ($)</span>
+                                <span style="font-size:11px; color:var(--text-muted);">Lot / Margin</span>
+                            </label>
+                            <input type="number" step="any" id="form-position-size" class="form-control mono" placeholder="100" value="100" inputmode="decimal">
+                        </div>
+                    </div>
+
                     <!-- 6. LIVE METRICS TỰ ĐỘNG TÍNH TOÁN -->
                     <div class="live-calc-box">
                         <div class="live-calc-header">
@@ -766,6 +792,6 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/app.js?v=20260924_v22"></script>
+    <script src="/static/js/app.js?v=20260924_v23"></script>
 </body>
 </html>

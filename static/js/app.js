@@ -836,6 +836,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const dateStr = t.entry_date ? t.entry_date.substring(5, 16) : "-";
             const displayId = (trades.length === 1 && t.id > 1) ? 1 : t.id;
 
+            const fees = Number(t.fees || 0);
+            let feesHtml = '<span class="text-muted mono" style="font-size:12px;">$0.00</span>';
+            if (fees > 0) {
+                feesHtml = `<span class="mono text-loss font-bold" style="font-size:12px;" title="Phí hoa hồng & phí qua đêm (Swap)">-$${fees.toFixed(2)}</span>`;
+            } else if (fees < 0) {
+                feesHtml = `<span class="mono text-win font-bold" style="font-size:12px;" title="Lãi qua đêm (Positive swap)">+$${Math.abs(fees).toFixed(2)}</span>`;
+            }
+
             tr.innerHTML = `
                 <td class="mono text-muted">#${displayId}</td>
                 <td><strong class="font-bold">${t.symbol}</strong> <span class="text-muted" style="font-size:11px;">${t.timeframe || ''}</span></td>
@@ -843,6 +851,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td>${statusBadge}</td>
                 <td class="mono font-bold">$${(t.entry_price || 0).toLocaleString()}</td>
                 <td class="mono font-bold">${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</td>
+                <td>${feesHtml}</td>
                 <td>${pnlHtml}</td>
                 <td>${roiHtml}</td>
                 <td>${rrHtml}</td>
@@ -914,8 +923,16 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="tc-metric-value mono">$${(t.entry_price || 0).toLocaleString()} ➔ ${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</span>
                         </div>
                         <div class="tc-metric-item">
+                            <span class="tc-metric-label">Phí & Swap</span>
+                            <span class="tc-metric-value mono">${fees > 0 ? `<span class="text-loss font-bold">-$${fees.toFixed(2)}</span>` : (fees < 0 ? `<span class="text-win font-bold">+$${Math.abs(fees).toFixed(2)}</span>` : '<span class="text-muted">$0.00</span>')}</span>
+                        </div>
+                        <div class="tc-metric-item">
                             <span class="tc-metric-label">Tỷ Lệ R:R</span>
                             <span class="tc-metric-value mono">${rrHtml}</span>
+                        </div>
+                        <div class="tc-metric-item">
+                            <span class="tc-metric-label">Khối Lượng / Lot</span>
+                            <span class="tc-metric-value mono">${t.position_size ? Number(t.position_size).toLocaleString() : '100'}</span>
                         </div>
                         <div class="tc-pnl-box">
                             <div>
