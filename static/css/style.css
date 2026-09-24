@@ -1400,18 +1400,8 @@ textarea.form-control {
 }
 
 @media (max-width: 768px) {
-    .app-header {
-        padding: 10px 14px;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-    .header-tabs {
-        order: 3;
-        width: 100%;
-        justify-content: space-around;
-    }
     .hide-mobile {
-        display: none;
+        display: none !important;
     }
     .form-grid-2, .form-grid-3, .form-grid-4 {
         grid-template-columns: 1fr;
@@ -1597,12 +1587,7 @@ textarea.form-control {
    ADVANCED MOBILE & IPHONE OPTIMIZATIONS (iOS FIRST ARCHITECTURE)
    ========================================================================== */
 
-:root {
-    --sat: env(safe-area-inset-top, 0px);
-    --sab: env(safe-area-inset-bottom, 0px);
-    --sal: env(safe-area-inset-left, 0px);
-    --sar: env(safe-area-inset-right, 0px);
-}
+/* Mobile safe-area variables merged to top :root */
 
 /* Prevent iOS tap highlight & enable smooth gesture manipulation */
 html, body {

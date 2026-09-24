@@ -180,20 +180,7 @@ def auth_reset_password():
     return jsonify({"error": result.get("error", "Không thể đặt lại mật khẩu")}), 400
 
 
-@app.route("/api/auth/delete-user/<username>", methods=["GET", "POST"])
-def auth_delete_user(username):
-    clean_user = username.strip().lower()
-    with db.get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE username = ?", (clean_user,))
-        row = cursor.fetchone()
-        if row:
-            uid = row[0]
-            cursor.execute("DELETE FROM trades WHERE user_id = ?", (uid,))
-            cursor.execute("DELETE FROM users WHERE id = ?", (uid,))
-            conn.commit()
-            return jsonify({"success": True, "message": f"Da xoa tai khoan {clean_user} thanh cong!"})
-    return jsonify({"error": "Khong tim thay tai khoan"}), 404
+
 
 @app.route("/api/auth/logout", methods=["POST"])
 def auth_logout():
@@ -693,7 +680,7 @@ def export_csv():
             temp_csv_path,
             mimetype="text/csv",
             as_attachment=True,
-            download_name=f"crypto_trading_journal_{datetime.now().strftime('%Y%m%d')}.csv"
+            download_name=f"trading_journal_{datetime.now().strftime('%Y%m%d')}.csv"
         )
     return jsonify({"error": "Không thể xuất file CSV"}), 500
 
@@ -701,9 +688,12 @@ def export_csv():
 
 @app.after_request
 def add_header(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
+    if request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    elif request.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
     return response
 
 if __name__ == "__main__":

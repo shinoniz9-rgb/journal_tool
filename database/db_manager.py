@@ -11,6 +11,7 @@ from config import DB_PATH, DATABASE_URL
 
 try:
     import psycopg2
+    from psycopg2.pool import ThreadedConnectionPool
     from psycopg2.extras import RealDictCursor
     HAS_POSTGRES = True
 except ImportError:
@@ -57,18 +58,35 @@ class PgCursorWrapper:
 
 
 class PgConnectionWrapper:
-    def __init__(self, conn):
+    def __init__(self, conn, pool=None):
         self.conn = conn
+        self.pool = pool
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is not None:
-            self.conn.rollback()
-        else:
-            self.conn.commit()
-        self.conn.close()
+        is_broken = False
+        try:
+            if exc_type is not None:
+                self.conn.rollback()
+                if issubclass(exc_type, (psycopg2.OperationalError, psycopg2.InterfaceError)):
+                    is_broken = True
+            else:
+                self.conn.commit()
+        except Exception:
+            is_broken = True
+        finally:
+            if self.pool:
+                try:
+                    self.pool.putconn(self.conn, close=is_broken)
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.conn.close()
+                except Exception:
+                    pass
 
     def cursor(self):
         return PgCursorWrapper(self.conn.cursor(cursor_factory=RealDictCursor))
@@ -76,31 +94,71 @@ class PgConnectionWrapper:
     def commit(self):
         self.conn.commit()
 
+    def rollback(self):
+        try:
+            self.conn.rollback()
+        except Exception:
+            pass
+
+    def close(self):
+        if self.pool:
+            try:
+                self.pool.putconn(self.conn)
+            except Exception:
+                pass
+        else:
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+
 
 class DatabaseManager:
     def __init__(self, db_path: str = DB_PATH, db_url: Optional[str] = DATABASE_URL):
         self.db_path = db_path
         self.db_url = db_url
         self.is_postgres = False
+        self.pool = None
 
         if self.db_url and HAS_POSTGRES:
             try:
-                test_conn = psycopg2.connect(self.db_url)
-                test_conn.close()
+                self.pool = ThreadedConnectionPool(minconn=1, maxconn=10, dsn=self.db_url)
                 self.is_postgres = True
-                print("[+] Connected successfully to Neon PostgreSQL cloud database!")
+                print("[+] Connected successfully to Neon PostgreSQL connection pool (1-10 conns)!")
             except Exception as e:
-                print(f"[!] Cannot connect to PostgreSQL: {e}")
+                print(f"[!] Cannot initialize PostgreSQL pool: {e}")
                 self.is_postgres = False
+                self.pool = None
 
         self.init_db()
 
     def get_connection(self):
-        if self.is_postgres and self.db_url:
-            try:
-                return PgConnectionWrapper(psycopg2.connect(self.db_url))
-            except Exception as e:
-                print(f"[!] PostgreSQL error: {e}, fallback to SQLite")
+        if self.is_postgres and self.pool:
+            for _ in range(2):
+                try:
+                    conn = self.pool.getconn()
+                    # Kiểm tra kết nối sống trước khi cấp phát (đặc biệt khi Neon tự động ngủ sau 5 phút không hoạt động)
+                    if conn.closed == 0:
+                        try:
+                            with conn.cursor() as cur:
+                                cur.execute("SELECT 1;")
+                            return PgConnectionWrapper(conn, pool=self.pool)
+                        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+                            # Socket cũ bị đóng bởi cloud, loại bỏ và lấy kết nối mới
+                            self.pool.putconn(conn, close=True)
+                            continue
+                    else:
+                        self.pool.putconn(conn, close=True)
+                except Exception as e:
+                    print(f"[!] PostgreSQL pool error: {e}")
+                    break
+
+            if self.db_url:
+                try:
+                    return PgConnectionWrapper(psycopg2.connect(self.db_url))
+                except Exception as e2:
+                    print(f"[!] Direct connect failed: {e2}")
+
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
@@ -270,6 +328,18 @@ class DatabaseManager:
                     ("admin", pwd_hash, "Admin Trader", 1000.0, now)
                 )
                 conn.commit()
+            # Tối ưu hóa hiệu năng truy vấn siêu tốc bằng Database Index
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_user_id ON trades(user_id);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_entry_date ON trades(entry_date DESC);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_mt5_acc ON trades(mt5_account_id);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_mt5_ticket ON trades(mt5_ticket);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_mt5_accounts_user_id ON mt5_accounts(user_id);")
+                conn.commit()
+            except Exception as e:
+                print(f"[!] Warning creating indexes: {e}")
+
 
     def register_user(self, username: str, password: str, display_name: Optional[str] = None) -> Dict[str, Any]:
         username = username.strip().lower()

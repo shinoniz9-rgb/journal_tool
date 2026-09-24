@@ -62,8 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
         filterSymbol: document.getElementById("filter-symbol"),
         filterStatus: document.getElementById("filter-status"),
         filterResult: document.getElementById("filter-result"),
-        filterStrategy: document.getElementById("filter-strategy"),
-        btnResetFilters: document.getElementById("btn-reset-filters"),
+                btnResetFilters: document.getElementById("btn-reset-filters"),
         filterStatsLabel: document.getElementById("filter-stats-label"),
 
         // Table
@@ -134,8 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fileChartInput: document.getElementById("file-chart-input"),
         btnRemoveChart: document.getElementById("btn-remove-chart"),
 
-        pairsDatalist: document.getElementById("pairs-datalist"),
-
+        
         // Lightbox
         modalLightbox: document.getElementById("modal-lightbox"),
         lightboxImg: document.getElementById("lightbox-img"),
@@ -220,7 +218,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     localStorage.setItem("cj_auth_token", data.token);
                 }
                 localStorage.setItem("cj_user", JSON.stringify(data.user));
-                onUserLoggedIn(data.user);
+                const wasLoaded = !!state.user;
+                state.user = data.user;
+                hideAuthModal();
+
+                const firstLetter = (data.user.display_name || data.user.username || "T").charAt(0).toUpperCase();
+                if (elements.userAvatarText) elements.userAvatarText.textContent = firstLetter;
+                if (elements.userDisplayName) elements.userDisplayName.textContent = data.user.display_name || data.user.username;
+                if (elements.userProfileChip) elements.userProfileChip.style.display = "flex";
+
+                if (!wasLoaded) {
+                    loadMt5Accounts();
+                    refreshAllData();
+                }
             } else {
                 localStorage.removeItem("cj_auth_token");
                 localStorage.removeItem("cj_user");
@@ -390,8 +400,28 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
     async function initApp() {
         setupEventListeners();
-        await loadConfig();
-        await checkAuthStatus();
+
+        // FAST-PATH INITIALIZATION: Tải trước từ bộ nhớ đệm cục bộ để giảm độ trễ tối đa
+        const cachedUserStr = localStorage.getItem("cj_user");
+        const token = localStorage.getItem("cj_auth_token");
+        if (cachedUserStr && token) {
+            try {
+                const cachedUser = JSON.parse(cachedUserStr);
+                if (cachedUser && (cachedUser.display_name || cachedUser.username)) {
+                    state.user = cachedUser;
+                    const firstLetter = (cachedUser.display_name || cachedUser.username || "T").charAt(0).toUpperCase();
+                    if (elements.userAvatarText) elements.userAvatarText.textContent = firstLetter;
+                    if (elements.userDisplayName) elements.userDisplayName.textContent = cachedUser.display_name || cachedUser.username;
+                    if (elements.userProfileChip) elements.userProfileChip.style.display = "flex";
+
+                    // Khởi chạy dữ liệu song song ngay lập tức mà không phải chờ auth/me phản hồi
+                    loadMt5Accounts();
+                    refreshAllData();
+                }
+            } catch (e) {}
+        }
+
+        await Promise.all([loadConfig(), checkAuthStatus()]);
     }
 
     async function loadConfig() {
@@ -400,13 +430,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
             state.config = data;
 
-            elements.pairsDatalist.innerHTML = "";
-            elements.filterSymbol.innerHTML = '<option value="Tất cả">Tất cả Cặp tiền</option>';
             
-            const formSymbolSelect = document.getElementById("form-symbol-select");
-            if (formSymbolSelect) {
-                formSymbolSelect.innerHTML = '<option value="">📂 Danh mục cặp tiền...</option>';
+            if (elements.filterSymbol) {
+                elements.filterSymbol.innerHTML = '<option value="Tất cả">Tất cả Cặp tiền</option>';
             }
+            
+
 
             if (data.symbol_categories) {
                 for (const [category, pairs] of Object.entries(data.symbol_categories)) {
@@ -509,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             renderKpiCards(stats);
             renderEquityChart(stats.equity_curve || []);
-            renderBreakdowns(stats);
+            // renderBreakdowns placeholder removed
         } catch (err) {
             console.error("Lỗi nạp thống kê:", err);
         }
@@ -715,10 +744,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function renderBreakdowns(stats) {
-        // Breakdowns are integrated into the main KPI and stats overview
-    }
-
     // ==========================================
     // TRADES JOURNAL TABLE VIEW
     // ==========================================
@@ -729,7 +754,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (elements.filterSymbol && elements.filterSymbol.value !== "Tất cả") params.append("symbol", elements.filterSymbol.value);
             if (elements.filterStatus && elements.filterStatus.value !== "Tất cả") params.append("status", elements.filterStatus.value);
             if (elements.filterResult && elements.filterResult.value !== "Tất cả") params.append("result", elements.filterResult.value);
-            if (elements.filterStrategy && elements.filterStrategy.value !== "Tất cả") params.append("strategy", elements.filterStrategy.value);
+            // filterStrategy removed
             if (state.currentMt5AccountId && state.currentMt5AccountId !== "all") {
                 params.append("mt5_account_id", state.currentMt5AccountId);
             }
@@ -769,6 +794,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         elements.tradesEmptyState.style.display = "none";
+
+        const tbodyFrag = document.createDocumentFragment();
+        const cardsFrag = document.createDocumentFragment();
 
         trades.forEach(t => {
             const tr = document.createElement("tr");
@@ -836,7 +864,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 openEditModal(t.id);
             });
 
-            elements.tradesTbody.appendChild(tr);
+            tbodyFrag.appendChild(tr);
 
             // Mobile Card Rendering
             if (elements.tradesCardsContainer) {
@@ -919,7 +947,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     openEditModal(t.id);
                 });
 
-                elements.tradesCardsContainer.appendChild(card);
+                cardsFrag.appendChild(card);
             }
 
         });
@@ -1695,22 +1723,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Quick Symbol Chips & Categorized Select Wiring
-        const formSymbolSelectEl = document.getElementById("form-symbol-select");
-        if (formSymbolSelectEl) {
-            formSymbolSelectEl.addEventListener("change", () => {
-                if (formSymbolSelectEl.value) {
-                    elements.formSymbol.value = formSymbolSelectEl.value;
-                    const val = formSymbolSelectEl.value.toUpperCase();
-                    if (val.includes("XAU") || val.includes("XAG") || val.includes("OIL") || (!val.includes("USDT") && val.includes("/"))) {
-                        if (elements.formMarketType) elements.formMarketType.value = "Forex / CFD";
-                    } else {
-                        if (elements.formMarketType) elements.formMarketType.value = "Futures";
-                    }
-                    elements.formSymbol.dispatchEvent(new Event("input"));
-                }
-            });
-        }
+
 
         document.querySelectorAll(".quick-symbol-chip").forEach(chip => {
             chip.addEventListener("click", () => {
