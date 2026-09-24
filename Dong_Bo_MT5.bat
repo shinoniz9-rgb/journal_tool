@@ -1,12 +1,12 @@
-@echo off
+﻿@echo off
 chcp 65001 > nul
-title Đồng Bộ Lệnh MT5 - Trading Journal
+title Dong Bo Lenh MT5 - Trading Journal
 echo ========================================================
-echo       ĐANG KẾT NỐI VÀ ĐỒNG BỘ LỆNH TỪ MT5 VÀO NHẬT KÝ
+echo       DANG KET NOI VA DONG BO LENH TU MT5 VAO NHAT KY
 echo ========================================================
 echo.
-python "%~dp0dong_bo_mt5.py"
+python  %~dp0dong_bo_mt5.py
 echo.
 echo ========================================================
-echo Bấm phím bất kỳ để đóng cửa sổ này...
+echo Bam phim bat ky de dong cua so nay...
 pause > nul
