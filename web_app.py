@@ -625,6 +625,28 @@ def mt5_webhook():
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     close_time = payload.get("close_time") or payload.get("time") or now_str
     
+    # 3. Kiểm tra chống trùng lặp lệnh (Duplicate Prevention)
+    ticket = str(payload.get("ticket") or payload.get("deal_id") or payload.get("deal") or "").strip()
+    with db.get_connection() as conn:
+        cursor = conn.cursor()
+        if ticket:
+            cursor.execute("SELECT id FROM trades WHERE user_id = ? AND notes LIKE ? LIMIT 1", (user_id, f"%#{ticket}%"))
+            existing = cursor.fetchone()
+            if existing:
+                return jsonify({"status": "skipped", "message": f"Lệnh #{ticket} đã tồn tại trong nhật ký", "trade_id": existing[0]}), 200
+                
+        # Kiểm tra thêm theo các thông số khớp lệnh để đảm bảo 100% không bị nhân đôi
+        cursor.execute(
+            "SELECT id FROM trades WHERE user_id = ? AND symbol = ? AND trade_type = ? AND entry_price = ? AND exit_price = ? AND exit_date = ? LIMIT 1",
+            (user_id, symbol, trade_type, entry_price, exit_price, close_time)
+        )
+        existing_match = cursor.fetchone()
+        if existing_match:
+            return jsonify({"status": "skipped", "message": "Lệnh đã tồn tại trong nhật ký", "trade_id": existing_match[0]}), 200
+
+    ticket_note = f"MT5 #{ticket}" if ticket else "MT5 Sync"
+    acc_label = acc['account_name'] if acc else 'Tài khoản MT5'
+
     trade_data = {
         "user_id": user_id,
         "mt5_account_id": mt5_acc_id,
@@ -646,7 +668,7 @@ def mt5_webhook():
         "pnl_percent": pnl_percent,
         "strategy": "MT5 Auto Sync",
         "emotion": "Disciplined",
-        "notes": f"Đồng bộ tự động từ MT5 ({acc['account_name'] if acc else 'Tài khoản MT5'})"
+        "notes": f"{ticket_note} ({acc_label})"
     }
 
     trade_id = db.add_trade(user_id=user_id, data=trade_data)
