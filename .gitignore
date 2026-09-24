@@ -17,3 +17,8 @@ api-ms-win-core-path-l1-1-0.dll
 # Temp files
 *.log
 temp_export.csv
+
+# SQLite local databases
+data/*.db
+*.db
+*.sqlite3
