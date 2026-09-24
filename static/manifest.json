@@ -1,0 +1,22 @@
+{
+  "name": "Trading Journal Pro",
+  "short_name": "Journal",
+  "description": "Nhật ký giao dịch chuyên nghiệp, quản lý lệnh và kiểm soát tâm lý giao dịch",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090D12",
+  "theme_color": "#0B0E14",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='44' fill='%230B0E14'/%3E%3Cpath d='M104 30L44 105h48l-8 57 62-77H98z' fill='%2300F59B'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='110' fill='%230B0E14'/%3E%3Cpath d='M280 80L120 280h128l-22 152 166-206H264z' fill='%2300F59B'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
