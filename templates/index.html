@@ -22,7 +22,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v21">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v22">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -487,13 +487,17 @@
 
                     <div class="form-row form-grid-2">
                         <div class="form-group">
-                            <label for="mt5-password" class="form-label">Mật khẩu Investor <span style="font-size:11px; color:var(--text-muted);">(Tùy chọn nếu thêm thủ công)</span></label>
-                            <input type="password" id="mt5-password" class="form-control" placeholder="Bỏ qua nếu là tài khoản thủ công">
+                            <label for="mt5-password" class="form-label">Mật Khẩu Investor</label>
+                            <input type="password" id="mt5-password" class="form-control" placeholder="Tùy chọn (Bỏ qua nếu nhập tay)">
                         </div>
                         <div class="form-group">
                             <label for="mt5-balance" class="form-label">Số Vốn Ban Đầu ($)</label>
                             <input type="number" step="any" id="mt5-balance" class="form-control mono" placeholder="vd: 5000 hoặc 10000">
                         </div>
+                    </div>
+
+                    <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px; line-height: 1.4;">
+                        💡 <em>Với tài khoản nhập tay (Binance, Bybit...): Chỉ cần điền Tên và Số vốn ban đầu, bỏ qua mật khẩu.</em>
                     </div>
 
                     <div class="auth-alert" id="mt5-form-alert" style="display: none; margin-top: 10px;"></div>
@@ -762,6 +766,6 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/app.js?v=20260924_v21"></script>
+    <script src="/static/js/app.js?v=20260924_v22"></script>
 </body>
 </html>
