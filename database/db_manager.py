@@ -1,218 +1,320 @@
 """
-Database Manager for SQLite Storage with Multi-User Authentication
+Database Manager supporting both Cloud PostgreSQL (Neon) and Local SQLite
+Bảo toàn dữ liệu vĩnh viễn, chống mất dữ liệu khi deploy lại hệ thống.
 """
-import sqlite3
 import os
+import sqlite3
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from config import DB_PATH
+from config import DB_PATH, DATABASE_URL
+
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    HAS_POSTGRES = True
+except ImportError:
+    HAS_POSTGRES = False
+
+
+class PgCursorWrapper:
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.lastrowid = None
+
+    def execute(self, query, params=None):
+        q = query.replace("?", "%s")
+        # Tự động thêm RETURNING id nếu là lệnh INSERT để lấy lastrowid
+        if "INSERT INTO" in q.upper() and "RETURNING" not in q.upper():
+            q = q.rstrip(";\n\t ") + " RETURNING id;"
+            if params is not None:
+                self.cursor.execute(q, params)
+            else:
+                self.cursor.execute(q)
+            row = self.cursor.fetchone()
+            if row:
+                self.lastrowid = row["id"] if isinstance(row, dict) else row[0]
+            return self
+        if params is not None:
+            self.cursor.execute(q, params)
+        else:
+            self.cursor.execute(q)
+        return self
+
+    def fetchone(self):
+        row = self.cursor.fetchone()
+        if row is None:
+            return None
+        return dict(row)
+
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+
+
+class PgConnectionWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.conn.rollback()
+        else:
+            self.conn.commit()
+        self.conn.close()
+
+    def cursor(self):
+        return PgCursorWrapper(self.conn.cursor(cursor_factory=RealDictCursor))
+
+    def commit(self):
+        self.conn.commit()
 
 
 class DatabaseManager:
-    def __init__(self, db_path: str = DB_PATH):
+    def __init__(self, db_path: str = DB_PATH, db_url: Optional[str] = DATABASE_URL):
         self.db_path = db_path
+        self.db_url = db_url
+        self.is_postgres = False
+
+        if self.db_url and HAS_POSTGRES:
+            try:
+                test_conn = psycopg2.connect(self.db_url)
+                test_conn.close()
+                self.is_postgres = True
+                print("[+] Connected successfully to Neon PostgreSQL cloud database!")
+            except Exception as e:
+                print(f"[!] Cannot connect to PostgreSQL: {e}")
+                self.is_postgres = False
+
         self.init_db()
 
-    def get_connection(self) -> sqlite3.Connection:
+    def get_connection(self):
+        if self.is_postgres and self.db_url:
+            try:
+                return PgConnectionWrapper(psycopg2.connect(self.db_url))
+            except Exception as e:
+                print(f"[!] PostgreSQL error: {e}, fallback to SQLite")
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
     def init_db(self):
-        """Khởi tạo cấu trúc các bảng và tự động bổ sung cột mới nếu cần"""
+        """Khởi tạo cấu trúc các bảng"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            # 1. Bảng Users (Hệ thống xác thực đa người dùng)
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                display_name TEXT,
-                initial_capital REAL DEFAULT 1000.0,
-                created_at TEXT NOT NULL
-            );
-            """)
+            if self.is_postgres:
+                # 1. Bảng Users (PostgreSQL)
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(100) UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    display_name VARCHAR(100),
+                    initial_capital DOUBLE PRECISION DEFAULT 1000.0,
+                    created_at VARCHAR(50) NOT NULL
+                );
+                """)
 
-            # 2. Bảng Trades (Lưu trữ các lệnh giao dịch)
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS trades (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER DEFAULT 1,
-                symbol TEXT NOT NULL,
-                trade_type TEXT NOT NULL,
-                market_type TEXT NOT NULL,
-                status TEXT NOT NULL,
-                timeframe TEXT,
-                entry_date TEXT NOT NULL,
-                exit_date TEXT,
-                entry_price REAL NOT NULL,
-                exit_price REAL,
-                stop_loss REAL,
-                take_profit REAL,
-                leverage INTEGER DEFAULT 1,
-                position_size REAL NOT NULL,
-                risk_amount REAL DEFAULT 0.0,
-                fees REAL DEFAULT 0.0,
-                pnl REAL DEFAULT 0.0,
-                pnl_percent REAL DEFAULT 0.0,
-                planned_rr REAL DEFAULT 0.0,
-                realized_rr REAL DEFAULT 0.0,
-                strategy TEXT,
-                emotion TEXT,
-                notes TEXT,
-                lessons TEXT,
-                chart_image_path TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY(user_id) REFERENCES users(id)
-            );
-            """)
+                # 2. Bảng MT5 Accounts (PostgreSQL)
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS mt5_accounts (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    account_name VARCHAR(100) NOT NULL,
+                    server VARCHAR(100) NOT NULL,
+                    login VARCHAR(100) NOT NULL,
+                    password VARCHAR(100) NOT NULL,
+                    metaapi_account_id VARCHAR(100),
+                    balance DOUBLE PRECISION DEFAULT 0.0,
+                    equity DOUBLE PRECISION DEFAULT 0.0,
+                    currency VARCHAR(20) DEFAULT 'USD',
+                    is_active INTEGER DEFAULT 1,
+                    created_at VARCHAR(50) NOT NULL,
+                    updated_at VARCHAR(50) NOT NULL
+                );
+                """)
 
-            # 3. Migration: Kiểm tra và bổ sung cột user_id, risk_amount nếu bảng trades đã tồn tại từ trước
-            cursor.execute("PRAGMA table_info(trades)")
-            trade_columns = [col[1] for col in cursor.fetchall()]
-            if "user_id" not in trade_columns:
-                try:
-                    cursor.execute("ALTER TABLE trades ADD COLUMN user_id INTEGER DEFAULT 1;")
-                except Exception:
-                    pass
-            if "risk_amount" not in trade_columns:
-                try:
-                    cursor.execute("ALTER TABLE trades ADD COLUMN risk_amount REAL DEFAULT 0.0;")
-                except Exception:
-                    pass
+                # 3. Bảng Trades (PostgreSQL)
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS trades (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
+                    mt5_account_id INTEGER,
+                    symbol VARCHAR(50) NOT NULL,
+                    trade_type VARCHAR(20) NOT NULL,
+                    market_type VARCHAR(50) NOT NULL,
+                    status VARCHAR(20) NOT NULL,
+                    timeframe VARCHAR(20),
+                    entry_date VARCHAR(50) NOT NULL,
+                    exit_date VARCHAR(50),
+                    entry_price DOUBLE PRECISION NOT NULL,
+                    exit_price DOUBLE PRECISION,
+                    stop_loss DOUBLE PRECISION,
+                    take_profit DOUBLE PRECISION,
+                    leverage INTEGER DEFAULT 1,
+                    position_size DOUBLE PRECISION NOT NULL,
+                    risk_amount DOUBLE PRECISION DEFAULT 0.0,
+                    fees DOUBLE PRECISION DEFAULT 0.0,
+                    pnl DOUBLE PRECISION DEFAULT 0.0,
+                    pnl_percent DOUBLE PRECISION DEFAULT 0.0,
+                    planned_rr DOUBLE PRECISION DEFAULT 0.0,
+                    realized_rr DOUBLE PRECISION DEFAULT 0.0,
+                    strategy VARCHAR(100),
+                    emotion VARCHAR(100),
+                    notes TEXT,
+                    lessons TEXT,
+                    chart_image_path TEXT,
+                    created_at VARCHAR(50) NOT NULL,
+                    updated_at VARCHAR(50) NOT NULL
+                );
+                """)
+            else:
+                # 1. Bảng Users (SQLite)
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    display_name TEXT,
+                    initial_capital REAL DEFAULT 1000.0,
+                    created_at TEXT NOT NULL
+                );
+                """)
 
-            # 4. Migration: Kiểm tra và bổ sung cột initial_capital vào users
-            cursor.execute("PRAGMA table_info(users)")
-            user_columns = [col[1] for col in cursor.fetchall()]
-            if "initial_capital" not in user_columns:
-                try:
-                    cursor.execute("ALTER TABLE users ADD COLUMN initial_capital REAL DEFAULT 1000.0;")
-                except Exception:
-                    pass
+                # 2. Bảng Trades (SQLite)
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS trades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER DEFAULT 1,
+                    symbol TEXT NOT NULL,
+                    trade_type TEXT NOT NULL,
+                    market_type TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    timeframe TEXT,
+                    entry_date TEXT NOT NULL,
+                    exit_date TEXT,
+                    entry_price REAL NOT NULL,
+                    exit_price REAL,
+                    stop_loss REAL,
+                    take_profit REAL,
+                    leverage INTEGER DEFAULT 1,
+                    position_size REAL NOT NULL,
+                    risk_amount REAL DEFAULT 0.0,
+                    fees REAL DEFAULT 0.0,
+                    pnl REAL DEFAULT 0.0,
+                    pnl_percent REAL DEFAULT 0.0,
+                    planned_rr REAL DEFAULT 0.0,
+                    realized_rr REAL DEFAULT 0.0,
+                    strategy TEXT,
+                    emotion TEXT,
+                    notes TEXT,
+                    lessons TEXT,
+                    chart_image_path TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id)
+                );
+                """)
 
-            # 5. Migration: Bảng mt5_accounts (Lưu thông tin các tài khoản MT5 riêng lẻ của User)
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS mt5_accounts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                account_name TEXT NOT NULL,
-                server TEXT NOT NULL,
-                login TEXT NOT NULL,
-                password TEXT NOT NULL,
-                metaapi_account_id TEXT,
-                balance REAL DEFAULT 0.0,
-                equity REAL DEFAULT 0.0,
-                currency TEXT DEFAULT 'USD',
-                is_active INTEGER DEFAULT 1,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY(user_id) REFERENCES users(id)
-            );
-            """)
+                # Bảng MT5 Accounts (SQLite)
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS mt5_accounts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    account_name TEXT NOT NULL,
+                    server TEXT NOT NULL,
+                    login TEXT NOT NULL,
+                    password TEXT NOT NULL,
+                    metaapi_account_id TEXT,
+                    balance REAL DEFAULT 0.0,
+                    equity REAL DEFAULT 0.0,
+                    currency TEXT DEFAULT 'USD',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id)
+                );
+                """)
 
-            # 6. Migration: Bổ sung mt5_account_id vào bảng trades
-            if "mt5_account_id" not in trade_columns:
-                try:
-                    cursor.execute("ALTER TABLE trades ADD COLUMN mt5_account_id INTEGER DEFAULT NULL;")
-                except Exception:
-                    pass
-
-            # 5. Tự động reset bộ đếm auto-increment về 1 nếu bảng trades rỗng hoặc chỉ có 1 lệnh bị nhảy ID
-            cursor.execute("SELECT COUNT(*) FROM trades")
-            trade_count = cursor.fetchone()[0]
-            if trade_count == 0:
-                try:
-                    cursor.execute("DELETE FROM sqlite_sequence WHERE name = 'trades'")
-                except Exception:
-                    pass
-            elif trade_count == 1:
-                try:
-                    cursor.execute("SELECT id FROM trades LIMIT 1")
-                    single_id = cursor.fetchone()[0]
-                    if single_id != 1:
-                        cursor.execute("UPDATE trades SET id = 1 WHERE id = ?", (single_id,))
-                        cursor.execute("UPDATE sqlite_sequence SET seq = 1 WHERE name = 'trades'")
-                except Exception:
-                    pass
+                cursor.execute("PRAGMA table_info(trades)")
+                trade_columns = [col[1] for col in cursor.fetchall()]
+                if "mt5_account_id" not in trade_columns:
+                    try:
+                        cursor.execute("ALTER TABLE trades ADD COLUMN mt5_account_id INTEGER DEFAULT NULL;")
+                    except Exception:
+                        pass
 
             conn.commit()
 
         self._ensure_default_user()
 
     def _ensure_default_user(self):
-        """Đảm bảo luôn có ít nhất 1 tài khoản ban đầu"""
+        """Đảm bảo luôn có ít nhất 1 tài khoản mặc định"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM users")
-            if cursor.fetchone()[0] == 0:
+            cursor.execute("SELECT id FROM users WHERE username = ?", ("admin",))
+            row = cursor.fetchone()
+            if not row:
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                cursor.execute("""
-                INSERT INTO users (username, password_hash, display_name, created_at)
-                VALUES (?, ?, ?, ?)
-                """, (
-                    "admin",
-                    generate_password_hash("123456"),
-                    "Admin Trader",
-                    now
-                ))
+                pwd_hash = generate_password_hash("admin123")
+                cursor.execute(
+                    "INSERT INTO users (username, password_hash, display_name, initial_capital, created_at) VALUES (?, ?, ?, ?, ?)",
+                    ("admin", pwd_hash, "Admin Trader", 1000.0, now)
+                )
                 conn.commit()
-
-    # =========================================================================
-    # QUẢN LÝ TÀI KHOẢN NGƯỜI DÙNG (USER AUTHENTICATION)
-    # =========================================================================
 
     def register_user(self, username: str, password: str, display_name: Optional[str] = None) -> Dict[str, Any]:
-        clean_user = username.strip().lower()
-        if not clean_user or len(clean_user) < 3:
-            return {"success": False, "error": "Tên đăng nhập phải có ít nhất 3 ký tự"}
-        if not password or len(password) < 4:
-            return {"success": False, "error": "Mật khẩu phải có ít nhất 4 ký tự"}
+        username = username.strip().lower()
+        if not username or not password:
+            return {"success": False, "error": "Tên đăng nhập và mật khẩu không được để trống"}
+        if len(username) < 3:
+            return {"success": False, "error": "Tên đăng nhập tối thiểu 3 ký tự"}
+        if len(password) < 4:
+            return {"success": False, "error": "Mật khẩu tối thiểu 4 ký tự"}
 
-        disp_name = (display_name.strip() if display_name else "") or clean_user.capitalize()
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        pwd_hash = generate_password_hash(password)
-
-        try:
-            with self.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                INSERT INTO users (username, password_hash, display_name, created_at)
-                VALUES (?, ?, ?, ?)
-                """, (clean_user, pwd_hash, disp_name, now))
-                conn.commit()
-                user_id = cursor.lastrowid
-                return {
-                    "success": True,
-                    "user": {
-                        "id": user_id,
-                        "username": clean_user,
-                        "display_name": disp_name
-                    }
-                }
-        except sqlite3.IntegrityError:
-            return {"success": False, "error": "Tên đăng nhập này đã được sử dụng, vui lòng chọn tên khác"}
-        except Exception as e:
-            return {"success": False, "error": f"Lỗi tạo tài khoản: {str(e)}"}
-
-    def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
-        clean_user = username.strip().lower()
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users WHERE username = ?", (clean_user,))
-            row = cursor.fetchone()
-            if row:
-                user = dict(row)
-                if check_password_hash(user["password_hash"], password):
-                    return {
-                        "id": user["id"],
-                        "username": user["username"],
-                        "display_name": user["display_name"]
-                    }
-        return None
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            if cursor.fetchone():
+                return {"success": False, "error": "Tên đăng nhập đã tồn tại, vui lòng chọn tên khác"}
+
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            pwd_hash = generate_password_hash(password)
+            display = (display_name or "").strip() or username.capitalize()
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, display_name, initial_capital, created_at) VALUES (?, ?, ?, ?, ?)",
+                (username, pwd_hash, display, 1000.0, now)
+            )
+            user_id = cursor.lastrowid
+            conn.commit()
+            user_obj = {"id": user_id, "username": username, "display_name": display, "initial_capital": 1000.0}
+            return {"success": True, "user": user_obj, "user_id": user_id, "username": username, "display_name": display}
+
+    def authenticate_user(self, username: str, password: str) -> Optional[Dict[str, Any]]:
+        username = username.strip().lower()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            if not user:
+                return None
+            stored_hash = user.get("password_hash")
+            if stored_hash and check_password_hash(stored_hash, password):
+                return {
+                    "id": user["id"],
+                    "username": user["username"],
+                    "display_name": user.get("display_name") or user["username"],
+                    "initial_capital": float(user.get("initial_capital", 1000.0))
+                }
+            return None
 
     def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
@@ -222,58 +324,48 @@ class DatabaseManager:
             return dict(row) if row else None
 
     def get_user_capital(self, user_id: int) -> float:
-        """Lấy số vốn ban đầu của user, mặc định 1000.0 nếu chưa có"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT initial_capital FROM users WHERE id = ?", (user_id,))
             row = cursor.fetchone()
-            if row and row["initial_capital"] is not None:
-                try:
-                    return float(row["initial_capital"])
-                except (ValueError, TypeError):
-                    return 1000.0
+            if row:
+                val = row.get("initial_capital")
+                return float(val) if val is not None else 1000.0
             return 1000.0
 
     def update_user_capital(self, user_id: int, capital: float) -> bool:
-        """Cập nhật số vốn ban đầu của user"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET initial_capital = ? WHERE id = ?", (capital, user_id))
+            cursor.execute("UPDATE users SET initial_capital = ? WHERE id = ?", (float(capital), user_id))
             conn.commit()
             return cursor.rowcount > 0
 
     def reset_user_password(self, username: str, new_password: str) -> Dict[str, Any]:
-        """Đặt lại mật khẩu cho tài khoản"""
-        clean_user = username.strip().lower()
-        if not clean_user or not new_password or len(new_password) < 4:
-            return {"success": False, "error": "Mật khẩu mới phải có ít nhất 4 ký tự"}
-        pwd_hash = generate_password_hash(new_password)
+        username = username.strip().lower()
+        if not username or not new_password:
+            return {"success": False, "error": "Tên đăng nhập và mật khẩu mới không được để trống"}
+        if len(new_password) < 4:
+            return {"success": False, "error": "Mật khẩu mới phải từ 4 ký tự trở lên"}
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (pwd_hash, clean_user))
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            if not user:
+                return {"success": False, "error": "Không tìm thấy tài khoản với tên đăng nhập này"}
+
+            new_hash = generate_password_hash(new_password)
+            cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (new_hash, username))
             conn.commit()
-            if cursor.rowcount > 0:
-                cursor.execute("SELECT id, username, display_name FROM users WHERE username = ?", (clean_user,))
-                row = cursor.fetchone()
-                return {"success": True, "message": "Đặt lại mật khẩu thành công!", "user": dict(row)}
-            return {"success": False, "error": "Không tìm thấy tên đăng nhập này"}
+            return {"success": True, "message": "Đặt lại mật khẩu thành công!"}
 
-    # =========================================================================
-    # QUẢN LÝ LỆNH GIAO DỊCH (TRADES) THEO TỪNG USER
-    # =========================================================================
-
+    # ==========================================
+    # CÁC HÀM QUẢN LÝ LỆNH GIAO DỊCH (TRADES)
+    # ==========================================
     def add_trade(self, user_id: int, data: Dict[str, Any]) -> int:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            # Nếu chưa có lệnh nào, tự động reset sequence để lệnh đầu tiên luôn bắt đầu từ 1
-            cursor.execute("SELECT COUNT(*) FROM trades")
-            if cursor.fetchone()[0] == 0:
-                try:
-                    cursor.execute("DELETE FROM sqlite_sequence WHERE name = 'trades'")
-                except Exception:
-                    pass
-
             mt5_acc_id = data.get("mt5_account_id")
             if mt5_acc_id in (None, "", "all", "none"):
                 mt5_acc_id = None
@@ -336,44 +428,53 @@ class DatabaseManager:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-            UPDATE trades SET
-                symbol = ?, trade_type = ?, market_type = ?, status = ?, timeframe = ?,
-                entry_date = ?, exit_date = ?, entry_price = ?, exit_price = ?,
-                stop_loss = ?, take_profit = ?, leverage = ?, position_size = ?, risk_amount = ?, fees = ?,
-                pnl = ?, pnl_percent = ?, planned_rr = ?, realized_rr = ?,
-                strategy = ?, emotion = ?, notes = ?, lessons = ?, chart_image_path = ?,
-                updated_at = ?
-            WHERE id = ? AND user_id = ?
-            """, (
-                data.get("symbol", "").upper(),
-                data.get("trade_type", "Long"),
-                data.get("market_type", "Futures"),
-                data.get("status", "Open"),
-                data.get("timeframe", "H1"),
-                data.get("entry_date"),
-                data.get("exit_date"),
-                float(data.get("entry_price", 0.0)),
-                float(data.get("exit_price")) if data.get("exit_price") not in (None, "") else None,
-                float(data.get("stop_loss")) if data.get("stop_loss") not in (None, "") else None,
-                float(data.get("take_profit")) if data.get("take_profit") not in (None, "") else None,
-                int(data.get("leverage", 1)),
-                float(data.get("position_size", 0.0)),
-                float(data.get("risk_amount", 0.0)),
-                float(data.get("fees", 0.0)),
-                float(data.get("pnl", 0.0)),
-                float(data.get("pnl_percent", 0.0)),
-                float(data.get("planned_rr", 0.0)),
-                float(data.get("realized_rr", 0.0)),
-                data.get("strategy", ""),
-                data.get("emotion", ""),
-                data.get("notes", ""),
-                data.get("lessons", ""),
-                data.get("chart_image_path", ""),
-                now,
-                trade_id,
-                user_id
-            ))
+            cursor.execute("SELECT id FROM trades WHERE id = ? AND user_id = ?", (trade_id, user_id))
+            if not cursor.fetchone():
+                return False
+
+            fields = ["updated_at = ?"]
+            values = [now]
+
+            mapping = {
+                "symbol": lambda v: v.upper(),
+                "trade_type": str,
+                "market_type": str,
+                "status": str,
+                "timeframe": str,
+                "entry_date": str,
+                "exit_date": lambda v: v if v not in (None, "") else None,
+                "entry_price": float,
+                "exit_price": lambda v: float(v) if v not in (None, "") else None,
+                "stop_loss": lambda v: float(v) if v not in (None, "") else None,
+                "take_profit": lambda v: float(v) if v not in (None, "") else None,
+                "leverage": int,
+                "position_size": float,
+                "risk_amount": float,
+                "fees": float,
+                "pnl": float,
+                "pnl_percent": float,
+                "planned_rr": float,
+                "realized_rr": float,
+                "strategy": str,
+                "emotion": str,
+                "notes": str,
+                "lessons": str,
+                "chart_image_path": str
+            }
+
+            for key, func in mapping.items():
+                if key in data:
+                    fields.append(f"{key} = ?")
+                    val = data[key]
+                    values.append(func(val) if val is not None else None)
+
+            if "mt5_account_id" in data:
+                fields.append("mt5_account_id = ?")
+                acc_val = data["mt5_account_id"]
+                values.append(int(acc_val) if acc_val not in (None, "", "all") else None)
+
+            values.extend([trade_id, user_id])
+            cursor.execute(f"UPDATE trades SET {', '.join(fields)} WHERE id = ? AND user_id = ?", values)
             conn.commit()
             return cursor.rowcount > 0
 
@@ -382,16 +483,7 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM trades WHERE id = ? AND user_id = ?", (trade_id, user_id))
             conn.commit()
-            success = cursor.rowcount > 0
-            # Nếu xóa xong không còn lệnh nào, reset sequence để lệnh kế tiếp bắt đầu từ 1
-            cursor.execute("SELECT COUNT(*) FROM trades")
-            if cursor.fetchone()[0] == 0:
-                try:
-                    cursor.execute("DELETE FROM sqlite_sequence WHERE name = 'trades'")
-                    conn.commit()
-                except Exception:
-                    pass
-            return success
+            return cursor.rowcount > 0
 
     def get_trade(self, user_id: int, trade_id: int) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
@@ -475,8 +567,8 @@ class DatabaseManager:
                 cursor.execute("SELECT COUNT(*) FROM trades WHERE user_id = ?", (user_id,))
             else:
                 cursor.execute("SELECT COUNT(*) FROM trades")
-            return cursor.fetchone()[0]
-
+            row = cursor.fetchone()
+            return list(row.values())[0] if isinstance(row, dict) else row[0]
 
     # ==========================================
     # CÁC HÀM QUẢN LÝ TÀI KHOẢN MT5 (MULTI-ACCOUNT)
@@ -549,38 +641,3 @@ class DatabaseManager:
             cursor.execute("DELETE FROM mt5_accounts WHERE id = ? AND user_id = ?", (account_id, user_id))
             conn.commit()
             return cursor.rowcount > 0
-
-    def insert_sample_trades_if_empty(self, user_id: int = 1):
-        if self.count_trades(user_id) > 0:
-            return
-
-        sample_data = [
-            {
-                "symbol": "BTC/USDT",
-                "trade_type": "Long",
-                "market_type": "Futures",
-                "status": "Closed",
-                "timeframe": "H1",
-                "entry_date": "2026-09-15 08:30:00",
-                "exit_date": "2026-09-15 14:45:00",
-                "entry_price": 58200.0,
-                "exit_price": 60500.0,
-                "stop_loss": 57400.0,
-                "take_profit": 60600.0,
-                "leverage": 10,
-                "position_size": 200.0,
-                "fees": 4.5,
-                "pnl": 74.56,
-                "pnl_percent": 37.28,
-                "planned_rr": 3.0,
-                "realized_rr": 2.88,
-                "strategy": "SMC / Order Block",
-                "emotion": "Kỷ luật (Disciplined)",
-                "notes": "Bắt sóng hồi tại vùng Order Block H1 sau khi quét thanh khoản đáy cũ.",
-                "lessons": "Kiên nhẫn chờ retest là yếu tố sống còn.",
-                "chart_image_path": ""
-            }
-        ]
-
-        for trade in sample_data:
-            self.add_trade(user_id, trade)

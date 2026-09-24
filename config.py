@@ -91,3 +91,6 @@ COLORS = {
     "text_secondary": "#8B949E", # Chữ phụ xám mờ
     "text_muted": "#6E7681",     # Chữ gợi ý / mờ
 }
+
+# Cấu hình Cơ sở dữ liệu Đám mây vĩnh viễn (Neon PostgreSQL)
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://neondb_owner:npg_Htl5RSerw0In@ep-falling-poetry-b5um855v-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require")
