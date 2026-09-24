@@ -413,7 +413,11 @@ def update_trade(trade_id):
         data["planned_rr"] = metrics["planned_rr"]
         data["realized_rr"] = metrics["realized_rr"]
         data["risk_amount"] = risk_amount
-        if exit_price is not None:
+        # Bảo toàn Net PnL gốc từ sàn MT5 nếu lệnh MT5 chỉ chỉnh sửa ghi chú, biểu đồ, tâm lý
+        if existing.get("mt5_ticket") and entry_price == float(existing.get("entry_price", 0)) and exit_price == (float(existing.get("exit_price")) if existing.get("exit_price") is not None else None):
+            data["pnl"] = existing.get("pnl", metrics["pnl"])
+            data["pnl_percent"] = existing.get("pnl_percent", metrics["pnl_percent"])
+        elif exit_price is not None:
             data["pnl"] = metrics["pnl"]
             data["pnl_percent"] = metrics["pnl_percent"]
         elif data.get("status") == "Open":

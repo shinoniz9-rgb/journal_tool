@@ -444,10 +444,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     const filterGrp = document.createElement("optgroup");
                     filterGrp.label = category;
 
-                    // Form quick select optgroup
-                    const formGrp = document.createElement("optgroup");
-                    formGrp.label = category;
-
                     pairs.forEach(pair => {
                         // Datalist
                         if (elements.pairsDatalist) {
@@ -463,21 +459,10 @@ document.addEventListener("DOMContentLoaded", () => {
                             fOpt.textContent = pair;
                             filterGrp.appendChild(fOpt);
                         }
-
-                        // Form select
-                        if (formSymbolSelect) {
-                            const sOpt = document.createElement("option");
-                            sOpt.value = pair;
-                            sOpt.textContent = pair;
-                            formGrp.appendChild(sOpt);
-                        }
                     });
 
                     if (elements.filterSymbol) {
                         elements.filterSymbol.appendChild(filterGrp);
-                    }
-                    if (formSymbolSelect) {
-                        formSymbolSelect.appendChild(formGrp);
                     }
                 }
             } else {
