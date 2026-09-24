@@ -1044,6 +1044,11 @@ body {
     margin-bottom: 16px;
 }
 
+.modal-body > .form-group,
+.modal-body-scroll > .form-group {
+    margin-bottom: 16px;
+}
+
 .form-grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -2293,6 +2298,13 @@ html, body {
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         flex: 1 !important;
+    }
+
+    .modal-body .form-row,
+    .modal-body-scroll .form-row,
+    .modal-body > .form-group,
+    .modal-body-scroll > .form-group {
+        margin-bottom: 16px !important;
     }
 
     .modal-footer {

@@ -931,8 +931,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="tc-metric-value mono">${rrHtml}</span>
                         </div>
                         <div class="tc-metric-item">
-                            <span class="tc-metric-label">Khối Lượng / Lot</span>
-                            <span class="tc-metric-value mono">${t.position_size ? Number(t.position_size).toLocaleString() : '100'}</span>
+                            <span class="tc-metric-label">Rủi Ro (SL)</span>
+                            <span class="tc-metric-value mono">${t.risk_amount > 0 ? `<span class="text-loss font-bold">-$${Number(t.risk_amount).toFixed(2)}</span>` : '<span class="text-muted">-</span>'}</span>
                         </div>
                         <div class="tc-pnl-box">
                             <div>

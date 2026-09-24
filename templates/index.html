@@ -22,7 +22,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v23">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v24">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -541,49 +541,56 @@
                     <!-- HIDDEN DEFAULT INPUTS -->
                     <input type="hidden" id="form-market-type" value="Futures">
                     <input type="hidden" id="form-leverage" value="10">
+                    <input type="hidden" id="form-position-size" value="100">
                     <input type="hidden" id="form-strategy" value="">
                     <input type="hidden" id="form-emotion" value="">
                     <input type="hidden" id="form-notes" value="">
                     <input type="hidden" id="form-lessons" value="">
 
                     <!-- CHỌN TÀI KHOẢN GIAO DỊCH -->
-                    <div class="form-group">
-                        <label for="form-account-id" class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Tài Khoản Giao Dịch</span>
-                            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">Lệnh sẽ thuộc tài khoản này</span>
-                        </label>
-                        <select id="form-account-id" class="form-control" style="font-weight: 600; font-size: 13.5px; background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.4);">
-                            <option value="">-- Tài Khoản Chung (Mặc định) --</option>
-                            <!-- Danh sách tài khoản MT5 / Sàn thủ công nạp bằng JS -->
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-account-id" class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Tài Khoản Giao Dịch</span>
+                                <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">Lệnh sẽ thuộc tài khoản này</span>
+                            </label>
+                            <select id="form-account-id" class="form-control" style="font-weight: 600; font-size: 13.5px; background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.4);">
+                                <option value="">-- Tài Khoản Chung (Mặc định) --</option>
+                                <!-- Danh sách tài khoản MT5 / Sàn thủ công nạp bằng JS -->
+                            </select>
+                        </div>
                     </div>
 
                     <!-- 1. CHỌN MÃ GIAO DỊCH (BTC HOẶC VÀNG) -->
-                    <div class="form-group">
-                        <label for="form-symbol" class="form-label required">Cặp Tiền / Mã Giao Dịch</label>
-                        <input type="hidden" id="form-symbol" value="BTC/USDT">
-                        <div class="quick-symbols-bar-large" id="quick-symbols-bar">
-                            <button type="button" class="symbol-pick-btn active" data-symbol="BTC/USDT">
-                                <span class="pick-name">BTC/USDT</span>
-                            </button>
-                            <button type="button" class="symbol-pick-btn" data-symbol="XAU/USD">
-                                <span class="pick-name">XAU/USD (Vàng)</span>
-                            </button>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="form-symbol" class="form-label required">Cặp Tiền / Mã Giao Dịch</label>
+                            <input type="hidden" id="form-symbol" value="BTC/USDT">
+                            <div class="quick-symbols-bar-large" id="quick-symbols-bar">
+                                <button type="button" class="symbol-pick-btn active" data-symbol="BTC/USDT">
+                                    <span class="pick-name">BTC/USDT</span>
+                                </button>
+                                <button type="button" class="symbol-pick-btn" data-symbol="XAU/USD">
+                                    <span class="pick-name">XAU/USD (Vàng)</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                     <!-- 2. VỊ THẾ GIAO DỊCH (LONG / SHORT) -->
-                    <div class="form-group">
-                        <label class="form-label required">Vị Thế</label>
-                        <div class="segmented-control position-toggle">
-                            <input type="radio" name="trade_type" id="type-long" value="Long" checked>
-                            <label for="type-long" class="segment-label segment-long">
-                                <span>↗ LONG / MUA</span>
-                            </label>
-                            <input type="radio" name="trade_type" id="type-short" value="Short">
-                            <label for="type-short" class="segment-label segment-short">
-                                <span>↘ SHORT / BÁN</span>
-                            </label>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label required">Vị Thế</label>
+                            <div class="segmented-control position-toggle">
+                                <input type="radio" name="trade_type" id="type-long" value="Long" checked>
+                                <label for="type-long" class="segment-label segment-long">
+                                    <span>↗ LONG / MUA</span>
+                                </label>
+                                <input type="radio" name="trade_type" id="type-short" value="Short">
+                                <label for="type-short" class="segment-label segment-short">
+                                    <span>↘ SHORT / BÁN</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -669,22 +676,14 @@
                         </div>
                     </div>
 
-                    <!-- PHÍ GIAO DỊCH, PHÍ QUA ĐÊM (SWAP) & KHỐI LƯỢNG / KÝ QUỸ -->
-                    <div class="form-row form-grid-2">
+                    <!-- PHÍ GIAO DỊCH & PHÍ QUA ĐÊM (SWAP) -->
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="form-fees" class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
                                 <span>Phí Giao Dịch & Swap ($)</span>
-                                <span style="font-size:11px; color:var(--text-muted);">Hoa hồng / Phí sàn</span>
+                                <span style="font-size:11px; color:var(--text-muted);">Commission / Phí qua đêm (nhập tay hoặc auto MT5)</span>
                             </label>
-                            <input type="number" step="any" id="form-fees" class="form-control mono" placeholder="0.00" value="0" inputmode="decimal">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="form-position-size" class="form-label" style="display:flex; justify-content:space-between; align-items:center;">
-                                <span>Khối Lượng / Ký Quỹ ($)</span>
-                                <span style="font-size:11px; color:var(--text-muted);">Lot / Margin</span>
-                            </label>
-                            <input type="number" step="any" id="form-position-size" class="form-control mono" placeholder="100" value="100" inputmode="decimal">
+                            <input type="number" step="any" id="form-fees" class="form-control mono font-bold" placeholder="0.00" value="0" inputmode="decimal">
                         </div>
                     </div>
 
@@ -723,26 +722,28 @@
                     </div>
 
                     <!-- 7. ẢNH BIỂU ĐỒ TRADINGVIEW -->
-                    <div class="form-group">
-                        <label class="form-label">Ảnh Biểu Đồ TradingView</label>
-                        <div class="chart-dropzone" id="chart-dropzone" tabindex="0">
-                            <input type="hidden" id="form-chart-path" value="">
-                            
-                            <div class="dropzone-idle" id="dropzone-idle">
-                                <div class="dropzone-icon">📋</div>
-                                <div class="dropzone-text">
-                                    <strong>Dán ảnh (Ctrl+V) hoặc chọn từ máy</strong>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Ảnh Biểu Đồ TradingView</label>
+                            <div class="chart-dropzone" id="chart-dropzone" tabindex="0">
+                                <input type="hidden" id="form-chart-path" value="">
+                                
+                                <div class="dropzone-idle" id="dropzone-idle">
+                                    <div class="dropzone-icon">📋</div>
+                                    <div class="dropzone-text">
+                                        <strong>Dán ảnh (Ctrl+V) hoặc chọn từ máy</strong>
+                                    </div>
+                                    <button type="button" class="btn-mobile-camera" id="btn-mobile-camera">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                        <span>📸 Chụp ảnh / Chọn từ thư viện</span>
+                                    </button>
+                                    <input type="file" id="file-chart-input" accept="image/*" style="display: none;">
                                 </div>
-                                <button type="button" class="btn-mobile-camera" id="btn-mobile-camera">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                                    <span>📸 Chụp ảnh / Chọn từ thư viện</span>
-                                </button>
-                                <input type="file" id="file-chart-input" accept="image/*" style="display: none;">
-                            </div>
 
-                            <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
-                                <img id="preview-chart-img" src="" alt="TradingView Chart">
-                                <button type="button" class="btn-remove-chart" id="btn-remove-chart" title="Xóa ảnh">&times;</button>
+                                <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
+                                    <img id="preview-chart-img" src="" alt="TradingView Chart">
+                                    <button type="button" class="btn-remove-chart" id="btn-remove-chart" title="Xóa ảnh">&times;</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -792,6 +793,6 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/app.js?v=20260924_v23"></script>
+    <script src="/static/js/app.js?v=20260924_v24"></script>
 </body>
 </html>
