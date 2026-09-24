@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // State management
     const state = {
         user: null,
+        mt5Accounts: [],
+        currentMt5AccountId: localStorage.getItem("active_mt5_account_id") || "all",
         trades: [],
         stats: null,
         config: null,
@@ -264,7 +266,8 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.userDisplayName.textContent = user.display_name || user.username;
         elements.userProfileChip.style.display = "flex";
 
-        // Nạp dữ liệu riêng của user này
+        // Nạp danh sách tài khoản MT5 và dữ liệu riêng của user này
+        loadMt5Accounts();
         refreshAllData();
     }
 
@@ -492,7 +495,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // ==========================================
     async function loadStats() {
         try {
-            const res = await authFetch("/api/stats");
+            let statsUrl = "/api/stats";
+            if (state.currentMt5AccountId && state.currentMt5AccountId !== "all") {
+                statsUrl += `?mt5_account_id=${encodeURIComponent(state.currentMt5AccountId)}`;
+            }
+            const res = await authFetch(statsUrl);
             if (res.status === 401) {
                 showAuthModal();
                 return;
@@ -723,6 +730,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (elements.filterStatus && elements.filterStatus.value !== "Tất cả") params.append("status", elements.filterStatus.value);
             if (elements.filterResult && elements.filterResult.value !== "Tất cả") params.append("result", elements.filterResult.value);
             if (elements.filterStrategy && elements.filterStrategy.value !== "Tất cả") params.append("strategy", elements.filterStrategy.value);
+            if (state.currentMt5AccountId && state.currentMt5AccountId !== "all") {
+                params.append("mt5_account_id", state.currentMt5AccountId);
+            }
 
             const res = await authFetch(`/api/trades?${params.toString()}`);
             if (res.status === 401) {
@@ -1424,6 +1434,153 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.lightboxImg.src = "";
     }
 
+
+    // ==========================================
+    // MT5 MULTI-ACCOUNT MANAGEMENT & SWITCHER
+    // ==========================================
+    async function loadMt5Accounts() {
+        try {
+            const res = await authFetch("/api/mt5/accounts");
+            if (!res.ok) return;
+            const accounts = await res.json();
+            state.mt5Accounts = accounts;
+
+            renderMt5AccountDropdown(accounts);
+            renderMt5AccountCards(accounts);
+        } catch (err) {
+            console.error("Lỗi nạp danh sách MT5:", err);
+        }
+    }
+
+    function renderMt5AccountDropdown(accounts) {
+        const listEl = document.getElementById("dropdown-account-list");
+        const labelEl = document.getElementById("current-account-label");
+        if (!listEl) return;
+
+        listEl.innerHTML = "";
+
+        // Mục "Tất cả tài khoản"
+        const allItem = document.createElement("button");
+        allItem.type = "button";
+        allItem.className = `dropdown-account-item ${state.currentMt5AccountId === "all" ? "selected" : ""}`;
+        allItem.innerHTML = `
+            <div class="dropdown-account-info">
+                <span class="dropdown-account-title">📊 Tất Cả Tài Khoản</span>
+                <span class="dropdown-account-sub">Xem tổng hợp danh mục</span>
+            </div>
+            ${state.currentMt5AccountId === "all" ? '<span style="color:var(--accent-cyan); font-weight:bold;">✓</span>' : ''}
+        `;
+        allItem.addEventListener("click", () => switchMt5Account("all"));
+        listEl.appendChild(allItem);
+
+        let activeAccount = null;
+
+        // Các tài khoản cụ thể
+        accounts.forEach(acc => {
+            const isSelected = String(state.currentMt5AccountId) === String(acc.id);
+            if (isSelected) activeAccount = acc;
+
+            const item = document.createElement("button");
+            item.type = "button";
+            item.className = `dropdown-account-item ${isSelected ? "selected" : ""}`;
+            item.innerHTML = `
+                <div class="dropdown-account-info">
+                    <span class="dropdown-account-title">📈 ${escapeHtml(acc.account_name)}</span>
+                    <span class="dropdown-account-sub">${escapeHtml(acc.server)} #${escapeHtml(acc.login)}</span>
+                </div>
+                <div style="text-align: right;">
+                    <span class="dropdown-account-balance">$${Number(acc.balance || 0).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2})}</span>
+                    ${isSelected ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-left: 6px;">✓</span>' : ''}
+                </div>
+            `;
+            item.addEventListener("click", () => switchMt5Account(acc.id));
+            listEl.appendChild(item);
+        });
+
+        // Cập nhật nhãn trên thanh Header
+        if (labelEl) {
+            if (activeAccount) {
+                labelEl.textContent = `${activeAccount.account_name} ($${Number(activeAccount.balance || 0).toLocaleString("en-US", {maximumFractionDigits: 0})})`;
+            } else {
+                labelEl.textContent = "Tất Cả Tài Khoản";
+            }
+        }
+    }
+
+    function renderMt5AccountCards(accounts) {
+        const container = document.getElementById("mt5-account-cards-list");
+        const badge = document.getElementById("mt5-account-count-badge");
+        if (!container) return;
+
+        if (badge) badge.textContent = `${accounts.length} tài khoản`;
+        container.innerHTML = "";
+
+        if (accounts.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 12px;">Chưa có tài khoản MT5 nào được kết nối. Bấm bên dưới để thêm.</div>`;
+            return;
+        }
+
+        accounts.forEach(acc => {
+            const card = document.createElement("div");
+            card.className = "mt5-card-item";
+            card.innerHTML = `
+                <div class="mt5-card-details">
+                    <div class="mt5-card-title">${escapeHtml(acc.account_name)}</div>
+                    <div class="mt5-card-meta">${escapeHtml(acc.server)} • ID: <code>${escapeHtml(acc.login)}</code></div>
+                </div>
+                <div class="mt5-card-right">
+                    <span class="mt5-card-balance">$${Number(acc.balance || 0).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <button type="button" class="btn-delete-mt5" title="Xóa kết nối tài khoản này" data-id="${acc.id}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                </div>
+            `;
+            
+            const btnDel = card.querySelector(".btn-delete-mt5");
+            if (btnDel) {
+                btnDel.addEventListener("click", async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(`Bạn có chắc muốn xóa tài khoản MT5 "${acc.account_name}"? Các lệnh đã lưu sẽ không bị mất.`)) return;
+                    try {
+                        const res = await authFetch(`/api/mt5/accounts/${acc.id}`, { method: "DELETE" });
+                        if (res.ok) {
+                            showToast("Đã xóa tài khoản MT5!", "info");
+                            if (String(state.currentMt5AccountId) === String(acc.id)) {
+                                state.currentMt5AccountId = "all";
+                                localStorage.setItem("active_mt5_account_id", "all");
+                            }
+                            await loadMt5Accounts();
+                            await refreshAllData();
+                        }
+                    } catch (err) {
+                        showToast("Lỗi xóa tài khoản MT5", "error");
+                    }
+                });
+            }
+            container.appendChild(card);
+        });
+    }
+
+    async function switchMt5Account(accountId) {
+        state.currentMt5AccountId = accountId;
+        localStorage.setItem("active_mt5_account_id", accountId);
+
+        // Đóng dropdown menu
+        const menu = document.getElementById("account-dropdown-menu");
+        if (menu) menu.classList.remove("active");
+
+        // Cập nhật lại giao diện dropdown
+        renderMt5AccountDropdown(state.mt5Accounts);
+
+        // Thông báo chuyển đổi
+        const targetAcc = state.mt5Accounts.find(a => String(a.id) === String(accountId));
+        const accName = targetAcc ? targetAcc.account_name : "Tất Cả Tài Khoản";
+        showToast(`Đã chuyển sang: ${accName}`, "success");
+
+        // Tải lại toàn bộ dữ liệu chỉ của tài khoản này
+        await refreshAllData();
+    }
+
     function setupEventListeners() {
         // Auth Tab switching
         elements.tabLoginBtn.addEventListener("click", () => {
@@ -1764,6 +1921,93 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
         });
+
+
+        // MT5 Account Switcher Toggle & Modal Handlers
+        const btnAccountSwitcher = document.getElementById("btn-account-switcher");
+        const accountDropdownMenu = document.getElementById("account-dropdown-menu");
+        const modalMt5 = document.getElementById("modal-mt5-accounts");
+        const btnOpenAddMt5Modal = document.getElementById("btn-open-add-mt5-modal");
+        const btnCloseMt5Modal = document.getElementById("btn-close-mt5-modal");
+        const btnCancelMt5 = document.getElementById("btn-cancel-mt5");
+        const formAddMt5 = document.getElementById("form-add-mt5");
+
+        if (btnAccountSwitcher && accountDropdownMenu) {
+            btnAccountSwitcher.addEventListener("click", (e) => {
+                e.stopPropagation();
+                accountDropdownMenu.classList.toggle("active");
+            });
+
+            document.addEventListener("click", (e) => {
+                if (!btnAccountSwitcher.contains(e.target) && !accountDropdownMenu.contains(e.target)) {
+                    accountDropdownMenu.classList.remove("active");
+                }
+            });
+        }
+
+        if (btnOpenAddMt5Modal && modalMt5) {
+            btnOpenAddMt5Modal.addEventListener("click", () => {
+                if (accountDropdownMenu) accountDropdownMenu.classList.remove("active");
+                modalMt5.classList.add("active");
+            });
+        }
+
+        function closeMt5Modal() {
+            if (modalMt5) modalMt5.classList.remove("active");
+            const alertEl = document.getElementById("mt5-form-alert");
+            if (alertEl) alertEl.style.display = "none";
+        }
+
+        if (btnCloseMt5Modal) btnCloseMt5Modal.addEventListener("click", closeMt5Modal);
+        if (btnCancelMt5) btnCancelMt5.addEventListener("click", closeMt5Modal);
+        if (modalMt5) {
+            modalMt5.addEventListener("click", (e) => {
+                if (e.target === modalMt5) closeMt5Modal();
+            });
+        }
+
+        if (formAddMt5) {
+            formAddMt5.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const name = document.getElementById("mt5-account-name").value.trim();
+                const server = document.getElementById("mt5-server").value.trim();
+                const login = document.getElementById("mt5-login").value.trim();
+                const password = document.getElementById("mt5-password").value.trim();
+                const balance = parseFloat(document.getElementById("mt5-balance").value) || 0;
+
+                const alertEl = document.getElementById("mt5-form-alert");
+                if (alertEl) alertEl.style.display = "none";
+
+                try {
+                    const res = await authFetch("/api/mt5/accounts", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ account_name: name, server, login, password, balance })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        if (alertEl) {
+                            alertEl.textContent = data.error || "Thất bại!";
+                            alertEl.style.display = "block";
+                        }
+                        return;
+                    }
+
+                    showToast("Đã thêm tài khoản MT5 thành công!", "success");
+                    formAddMt5.reset();
+                    await loadMt5Accounts();
+                    if (data.account_id) {
+                        await switchMt5Account(data.account_id);
+                    }
+                    closeMt5Modal();
+                } catch (err) {
+                    if (alertEl) {
+                        alertEl.textContent = "Lỗi kết nối máy chủ!";
+                        alertEl.style.display = "block";
+                    }
+                }
+            });
+        }
 
         setupDropzone();
     }

@@ -94,6 +94,33 @@ class DatabaseManager:
                 except Exception:
                     pass
 
+            # 5. Migration: Bảng mt5_accounts (Lưu thông tin các tài khoản MT5 riêng lẻ của User)
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mt5_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                account_name TEXT NOT NULL,
+                server TEXT NOT NULL,
+                login TEXT NOT NULL,
+                password TEXT NOT NULL,
+                metaapi_account_id TEXT,
+                balance REAL DEFAULT 0.0,
+                equity REAL DEFAULT 0.0,
+                currency TEXT DEFAULT 'USD',
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            );
+            """)
+
+            # 6. Migration: Bổ sung mt5_account_id vào bảng trades
+            if "mt5_account_id" not in trade_columns:
+                try:
+                    cursor.execute("ALTER TABLE trades ADD COLUMN mt5_account_id INTEGER DEFAULT NULL;")
+                except Exception:
+                    pass
+
             # 5. Tự động reset bộ đếm auto-increment về 1 nếu bảng trades rỗng hoặc chỉ có 1 lệnh bị nhảy ID
             cursor.execute("SELECT COUNT(*) FROM trades")
             trade_count = cursor.fetchone()[0]
@@ -247,16 +274,25 @@ class DatabaseManager:
                 except Exception:
                     pass
 
+            mt5_acc_id = data.get("mt5_account_id")
+            if mt5_acc_id in (None, "", "all", "none"):
+                mt5_acc_id = None
+            else:
+                try:
+                    mt5_acc_id = int(mt5_acc_id)
+                except Exception:
+                    mt5_acc_id = None
+
             cursor.execute("""
             INSERT INTO trades (
-                user_id, symbol, trade_type, market_type, status, timeframe,
+                user_id, mt5_account_id, symbol, trade_type, market_type, status, timeframe,
                 entry_date, exit_date, entry_price, exit_price,
                 stop_loss, take_profit, leverage, position_size, risk_amount, fees,
                 pnl, pnl_percent, planned_rr, realized_rr,
                 strategy, emotion, notes, lessons, chart_image_path,
                 created_at, updated_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
@@ -265,6 +301,7 @@ class DatabaseManager:
             )
             """, (
                 user_id,
+                mt5_acc_id,
                 data.get("symbol", "").upper(),
                 data.get("trade_type", "Long"),
                 data.get("market_type", "Futures"),
@@ -363,11 +400,18 @@ class DatabaseManager:
             row = cursor.fetchone()
             return dict(row) if row else None
 
-    def get_all_trades(self, user_id: int, order_desc: bool = True) -> List[Dict[str, Any]]:
+    def get_all_trades(self, user_id: int, order_desc: bool = True, mt5_account_id: Any = None) -> List[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             order = "DESC" if order_desc else "ASC"
-            cursor.execute(f"SELECT * FROM trades WHERE user_id = ? ORDER BY id {order}", (user_id,))
+            if mt5_account_id is not None and str(mt5_account_id).lower() not in ("all", "", "none"):
+                try:
+                    acc_id = int(mt5_account_id)
+                    cursor.execute(f"SELECT * FROM trades WHERE user_id = ? AND mt5_account_id = ? ORDER BY id {order}", (user_id, acc_id))
+                except Exception:
+                    cursor.execute(f"SELECT * FROM trades WHERE user_id = ? ORDER BY id {order}", (user_id,))
+            else:
+                cursor.execute(f"SELECT * FROM trades WHERE user_id = ? ORDER BY id {order}", (user_id,))
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
 
@@ -378,10 +422,19 @@ class DatabaseManager:
         status: Optional[str] = None,
         result: Optional[str] = None,
         strategy: Optional[str] = None,
-        search_query: Optional[str] = None
+        search_query: Optional[str] = None,
+        mt5_account_id: Any = None
     ) -> List[Dict[str, Any]]:
         query = "SELECT * FROM trades WHERE user_id = ?"
         params = [user_id]
+
+        if mt5_account_id is not None and str(mt5_account_id).lower() not in ("all", "", "none"):
+            try:
+                acc_id = int(mt5_account_id)
+                query += " AND mt5_account_id = ?"
+                params.append(acc_id)
+            except Exception:
+                pass
 
         if symbol and symbol != "Tất cả":
             query += " AND symbol LIKE ?"
@@ -423,6 +476,79 @@ class DatabaseManager:
             else:
                 cursor.execute("SELECT COUNT(*) FROM trades")
             return cursor.fetchone()[0]
+
+
+    # ==========================================
+    # CÁC HÀM QUẢN LÝ TÀI KHOẢN MT5 (MULTI-ACCOUNT)
+    # ==========================================
+    def add_mt5_account(self, user_id: int, account_name: str, server: str, login: str, password: str, balance: float = 0.0, metaapi_account_id: Optional[str] = None) -> int:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT INTO mt5_accounts (
+                user_id, account_name, server, login, password,
+                metaapi_account_id, balance, equity, currency, is_active,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'USD', 1, ?, ?)
+            """, (
+                user_id,
+                account_name.strip() if account_name else f"MT5 #{login}",
+                server.strip(),
+                str(login).strip(),
+                password.strip(),
+                metaapi_account_id,
+                float(balance or 0.0),
+                float(balance or 0.0),
+                now,
+                now
+            ))
+            conn.commit()
+            return cursor.lastrowid
+
+    def get_mt5_accounts(self, user_id: int) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM mt5_accounts WHERE user_id = ? ORDER BY id ASC", (user_id,))
+            return [dict(r) for r in cursor.fetchall()]
+
+    def get_mt5_account(self, account_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if user_id is not None:
+                cursor.execute("SELECT * FROM mt5_accounts WHERE id = ? AND user_id = ?", (account_id, user_id))
+            else:
+                cursor.execute("SELECT * FROM mt5_accounts WHERE id = ?", (account_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_mt5_account_by_login(self, server: str, login: str) -> Optional[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM mt5_accounts WHERE login = ? AND (server LIKE ? OR ? LIKE '%' || server || '%') LIMIT 1", (str(login).strip(), f"%{server.strip()}%", server.strip()))
+            row = cursor.fetchone()
+            if not row:
+                cursor.execute("SELECT * FROM mt5_accounts WHERE login = ? LIMIT 1", (str(login).strip(),))
+                row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def update_mt5_balance(self, account_id: int, balance: float, equity: Optional[float] = None) -> bool:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if equity is not None:
+                cursor.execute("UPDATE mt5_accounts SET balance = ?, equity = ?, updated_at = ? WHERE id = ?", (float(balance), float(equity), now, account_id))
+            else:
+                cursor.execute("UPDATE mt5_accounts SET balance = ?, updated_at = ? WHERE id = ?", (float(balance), now, account_id))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def delete_mt5_account(self, account_id: int, user_id: int) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM mt5_accounts WHERE id = ? AND user_id = ?", (account_id, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
 
     def insert_sample_trades_if_empty(self, user_id: int = 1):
         if self.count_trades(user_id) > 0:

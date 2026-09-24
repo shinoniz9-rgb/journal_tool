@@ -266,8 +266,19 @@ def user_capital():
 @login_required
 def get_stats():
     user_id = get_current_user_id()
-    trades = db.get_all_trades(user_id=user_id, order_desc=False)
+    mt5_account_id = request.args.get("mt5_account_id")
+    trades = db.get_all_trades(user_id=user_id, order_desc=False, mt5_account_id=mt5_account_id)
+    
+    # Tự động lấy số vốn thực tế từ tài khoản MT5 nếu đang chọn tài khoản cụ thể
     initial_capital = db.get_user_capital(user_id=user_id)
+    if mt5_account_id and str(mt5_account_id).lower() not in ("all", "", "none"):
+        try:
+            acc = db.get_mt5_account(account_id=int(mt5_account_id), user_id=user_id)
+            if acc and float(acc.get("balance", 0)) > 0:
+                initial_capital = float(acc["balance"])
+        except Exception:
+            pass
+
     stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
     return jsonify(stats)
 
@@ -286,13 +297,15 @@ def get_trades():
     strategy = request.args.get("strategy")
     search = request.args.get("search")
 
+    mt5_account_id = request.args.get("mt5_account_id")
     trades = db.filter_trades(
         user_id=user_id,
         symbol=symbol,
         status=status,
         result=result,
         strategy=strategy,
-        search_query=search
+        search_query=search,
+        mt5_account_id=mt5_account_id
     )
     return jsonify(trades)
 
@@ -464,6 +477,187 @@ def upload_chart():
 # ==========================================
 # API XUẤT CSV
 # ==========================================
+
+
+# ==========================================
+# CÁC API QUẢN LÝ TÀI KHOẢN MT5 & REAL-TIME WEBHOOK
+# ==========================================
+
+@app.route("/api/mt5/accounts", methods=["GET"])
+@login_required
+def get_mt5_accounts():
+    user_id = get_current_user_id()
+    accounts = db.get_mt5_accounts(user_id=user_id)
+    # Ẩn password khi trả về client để bảo mật
+    safe_accounts = []
+    for a in accounts:
+        item = dict(a)
+        item.pop("password", None)
+        safe_accounts.append(item)
+    return jsonify(safe_accounts)
+
+@app.route("/api/mt5/accounts", methods=["POST"])
+@login_required
+def add_mt5_account():
+    user_id = get_current_user_id()
+    data = request.json or {}
+    server = data.get("server", "").strip()
+    login = data.get("login", "").strip()
+    password = data.get("password", "").strip()
+    account_name = data.get("account_name", "").strip() or f"MT5 #{login}"
+    balance = float(data.get("balance", 0.0) or 0.0)
+
+    if not server or not login:
+        return jsonify({"error": "Vui lòng nhập Tên Server và Số tài khoản MT5"}), 400
+
+    acc_id = db.add_mt5_account(
+        user_id=user_id,
+        account_name=account_name,
+        server=server,
+        login=login,
+        password=password,
+        balance=balance
+    )
+    return jsonify({"success": True, "account_id": acc_id, "message": "Đã thêm tài khoản MT5 thành công!"}), 201
+
+@app.route("/api/mt5/accounts/<int:account_id>", methods=["DELETE"])
+@login_required
+def delete_mt5_account(account_id):
+    user_id = get_current_user_id()
+    success = db.delete_mt5_account(account_id=account_id, user_id=user_id)
+    if not success:
+        return jsonify({"error": "Không thể xóa hoặc không tìm thấy tài khoản"}), 404
+    return jsonify({"success": True, "message": "Đã xóa tài khoản MT5"})
+
+@app.route("/api/mt5/accounts/<int:account_id>/balance", methods=["POST"])
+@login_required
+def update_mt5_account_balance(account_id):
+    user_id = get_current_user_id()
+    data = request.json or {}
+    balance = float(data.get("balance", 0.0))
+    equity = float(data.get("equity", balance))
+    acc = db.get_mt5_account(account_id=account_id, user_id=user_id)
+    if not acc:
+        return jsonify({"error": "Không tìm thấy tài khoản MT5"}), 404
+    db.update_mt5_balance(account_id=account_id, balance=balance, equity=equity)
+    return jsonify({"success": True, "balance": balance})
+
+@app.route("/api/mt5/webhook", methods=["POST"])
+def mt5_webhook():
+    """
+    Endpoint nhận dữ liệu lệnh đóng Real-time từ MT5 (MetaApi Cloud hoặc custom webhook).
+    Tự động chuẩn hóa dữ liệu và lưu vào đúng bảng nhật ký của User tương ứng.
+    """
+    payload = request.json or {}
+    
+    # 1. Tìm tài khoản MT5 dựa theo login / server hoặc account_id
+    login = str(payload.get("login") or payload.get("account_number") or payload.get("accountNumber") or payload.get("accountId") or "").strip()
+    server = str(payload.get("server") or "").strip()
+    
+    acc = None
+    if login:
+        acc = db.get_mt5_account_by_login(server=server, login=login)
+    
+    # Nếu payload gửi theo metaapi_account_id
+    if not acc and payload.get("metaapi_account_id"):
+        # Tìm theo metaapi_account_id
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM mt5_accounts WHERE metaapi_account_id = ? LIMIT 1", (payload["metaapi_account_id"],))
+            row = cursor.fetchone()
+            if row:
+                acc = dict(row)
+
+    # Nếu không tìm thấy theo login, fallback về tài khoản MT5 đầu tiên nếu có
+    if not acc and payload.get("user_id"):
+        user_id = int(payload["user_id"])
+        accounts = db.get_mt5_accounts(user_id=user_id)
+        if accounts:
+            acc = accounts[0]
+            
+    if not acc:
+        # Nếu chưa cấu hình tài khoản nào, fallback về user_id = 1
+        user_id = 1
+        mt5_acc_id = None
+    else:
+        user_id = acc["user_id"]
+        mt5_acc_id = acc["id"]
+
+    # Cập nhật số dư Balance nếu webhook có gửi kèm
+    new_balance = payload.get("balance") or payload.get("account_balance")
+    if new_balance is not None and mt5_acc_id:
+        try:
+            db.update_mt5_balance(account_id=mt5_acc_id, balance=float(new_balance))
+        except Exception:
+            pass
+
+    # 2. Xử lý thông tin lệnh đóng
+    # Bỏ qua nếu lệnh không phải lệnh đóng (deal entry out)
+    deal_type = str(payload.get("type") or payload.get("deal_type") or payload.get("action") or "BUY").upper()
+    trade_type = "Long" if "BUY" in deal_type else "Short"
+    
+    # Chuẩn hóa Symbol: XAUUSD -> XAU/USD, BTCUSD -> BTC/USD
+    raw_symbol = str(payload.get("symbol") or "XAU/USD").strip().upper()
+    if "/" not in raw_symbol:
+        if raw_symbol.startswith("XAU"):
+            symbol = "XAU/USD"
+        elif raw_symbol.startswith("BTC"):
+            symbol = "BTC/USDT"
+        elif len(raw_symbol) == 6:
+            symbol = f"{raw_symbol[:3]}/{raw_symbol[3:]}"
+        else:
+            symbol = raw_symbol
+    else:
+        symbol = raw_symbol
+
+    entry_price = float(payload.get("entry_price") or payload.get("open_price") or payload.get("price") or 0.0)
+    exit_price = float(payload.get("exit_price") or payload.get("close_price") or payload.get("price") or entry_price)
+    pnl = float(payload.get("profit") or payload.get("pnl") or 0.0)
+    
+    # Tính ROI %
+    pnl_percent = 0.0
+    if entry_price > 0:
+        if trade_type == "Long":
+            pnl_percent = round(((exit_price - entry_price) / entry_price) * 100, 2)
+        else:
+            pnl_percent = round(((entry_price - exit_price) / entry_price) * 100, 2)
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    close_time = payload.get("close_time") or payload.get("time") or now_str
+    
+    trade_data = {
+        "user_id": user_id,
+        "mt5_account_id": mt5_acc_id,
+        "symbol": symbol,
+        "trade_type": trade_type,
+        "market_type": "Forex" if "USD" in symbol and "USDT" not in symbol else "Crypto",
+        "status": "Closed",
+        "timeframe": str(payload.get("timeframe") or "H1"),
+        "entry_date": payload.get("open_time") or close_time,
+        "exit_date": close_time,
+        "entry_price": entry_price,
+        "exit_price": exit_price,
+        "stop_loss": float(payload["stop_loss"]) if payload.get("stop_loss") else None,
+        "take_profit": float(payload["take_profit"]) if payload.get("take_profit") else None,
+        "position_size": float(payload.get("volume") or payload.get("lot") or 1.0),
+        "risk_amount": 0.0,
+        "fees": 0.0,
+        "pnl": pnl,
+        "pnl_percent": pnl_percent,
+        "strategy": "MT5 Auto Sync",
+        "emotion": "Disciplined",
+        "notes": f"Đồng bộ tự động từ MT5 ({acc['account_name'] if acc else 'Tài khoản MT5'})"
+    }
+
+    trade_id = db.add_trade(user_id=user_id, data=trade_data)
+    return jsonify({
+        "status": "success",
+        "message": "Đã ghi nhận lệnh MT5 thành công",
+        "trade_id": trade_id,
+        "symbol": symbol,
+        "pnl": pnl
+    }), 201
+
 
 @app.route("/api/export-csv", methods=["GET"])
 @login_required

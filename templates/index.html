@@ -6,10 +6,10 @@
     <!-- Apple iOS & Web App Optimizations -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Crypto Journal">
+    <meta name="apple-mobile-web-app-title" content="Trading Journal">
     <meta name="format-detection" content="telephone=no">
     <meta name="theme-color" content="#0B0E14">
-    <title>Crypto Trading Journal - Nhật Ký Giao Dịch Pro</title>
+    <title>Trading Journal - Nhật Ký Giao Dịch Pro</title>
     <meta name="description" content="Nhật ký giao dịch Crypto chuyên nghiệp, quản lý lệnh, kiểm soát tâm lý, theo dõi tăng trưởng vốn và dán ảnh biểu đồ TradingView trực tiếp.">
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +18,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260923_v15">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v16">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -33,7 +33,7 @@
                 <div class="brand-logo">
                     <span class="brand-icon">⚡</span>
                     <div class="brand-info">
-                        <h1 class="brand-title">CRYPTO JOURNAL</h1>
+                        <h1 class="brand-title">TRADING JOURNAL</h1>
                         <span class="brand-badge">PRO EDITION</span>
                     </div>
                 </div>
@@ -69,6 +69,26 @@
                 <button class="btn btn-icon" id="btn-refresh" title="Làm mới dữ liệu">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 </button>
+
+                <!-- MT5 ACCOUNT SWITCHER DROPDOWN -->
+                <div class="mt5-account-dropdown" id="mt5-account-dropdown">
+                    <button type="button" class="btn-account-switcher" id="btn-account-switcher" title="Chuyển đổi tài khoản MT5">
+                        <span class="account-status-dot"></span>
+                        <span class="account-name-label" id="current-account-label">Tất Cả Tài Khoản</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="account-dropdown-menu" id="account-dropdown-menu">
+                        <div class="dropdown-header">TÀI KHOẢN MT5</div>
+                        <div class="account-list" id="dropdown-account-list">
+                            <!-- Danh sách tài khoản MT5 render bằng JS -->
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <button type="button" class="dropdown-item-action" id="btn-open-add-mt5-modal">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>Quản lý / Thêm MT5...</span>
+                        </button>
+                    </div>
+                </div>
 
                 <!-- USER PROFILE CHIP -->
                 <div class="user-profile-chip" id="user-profile-chip">
@@ -409,6 +429,79 @@
     </div>
 
     <!-- ========================================== -->
+    <!-- ========================================== -->
+    <!-- MODAL: QUẢN LÝ & THÊM TÀI KHOẢN MT5       -->
+    <!-- ========================================== -->
+    <div class="modal-backdrop" id="modal-mt5-accounts">
+        <div class="modal-dialog modal-center-dialog" style="max-width: 500px;">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">📈</span>
+                    <h2 class="modal-title" id="mt5-modal-title">Quản Lý Tài Khoản MT5</h2>
+                </div>
+                <button type="button" class="modal-close-btn" id="btn-close-mt5-modal">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding: 20px;">
+                <!-- Danh sách tài khoản hiện tại -->
+                <div class="mt5-current-list-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Tài Khoản Đã Kết Nối</span>
+                        <span id="mt5-account-count-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.06); color: var(--text-muted);">0 tài khoản</span>
+                    </div>
+                    <div class="mt5-account-cards" id="mt5-account-cards-list">
+                        <!-- Render dynamic list -->
+                    </div>
+                </div>
+
+                <div class="dropdown-divider" style="margin: 16px 0;"></div>
+
+                <!-- Form thêm tài khoản MT5 mới -->
+                <form id="form-add-mt5" autocomplete="off">
+                    <h3 style="font-size: 13px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>➕ Thêm Tài Khoản MT5 Mới</span>
+                    </h3>
+
+                    <div class="form-group">
+                        <label for="mt5-account-name" class="form-label required">Tên Gợi Nhớ (Ví dụ: Exness Cá Nhân, Quỹ FTMO)</label>
+                        <input type="text" id="mt5-account-name" class="form-control" placeholder="vd: Exness Vàng 5k" required>
+                    </div>
+
+                    <div class="form-row form-grid-2">
+                        <div class="form-group">
+                            <label for="mt5-server" class="form-label required">Tên Server Sàn</label>
+                            <input type="text" id="mt5-server" class="form-control" placeholder="vd: Exness-Real10" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mt5-login" class="form-label required">Số Tài Khoản (Login)</label>
+                            <input type="text" id="mt5-login" class="form-control mono" placeholder="vd: 8829103" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row form-grid-2">
+                        <div class="form-group">
+                            <label for="mt5-password" class="form-label required">Investor Password (Chỉ xem)</label>
+                            <input type="password" id="mt5-password" class="form-control" placeholder="Mật khẩu chỉ xem" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="mt5-balance" class="form-label">Số Dư Hiện Tại ($)</label>
+                            <input type="number" step="any" id="mt5-balance" class="form-control mono" placeholder="vd: 5000">
+                        </div>
+                    </div>
+
+                    <div class="auth-alert" id="mt5-form-alert" style="display: none; margin-top: 10px;"></div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+                        <button type="button" class="btn btn-secondary" id="btn-cancel-mt5">Đóng</button>
+                        <button type="submit" class="btn btn-primary" id="btn-save-mt5-account">
+                            <span>Lưu Tài Khoản MT5</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: THÊM / CHỈNH SỬA LỆNH (TRADE FORM)  -->
     <!-- ========================================== -->
     <div class="modal-backdrop" id="modal-trade-form">
@@ -650,6 +743,6 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/app.js?v=20260923_v15"></script>
+    <script src="/static/js/app.js?v=20260924_v16"></script>
 </body>
 </html>
