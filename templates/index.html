@@ -18,7 +18,7 @@
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v16">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260924_v17">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -58,13 +58,13 @@
 
             <!-- ACTION BUTTONS & USER PROFILE -->
             <div class="header-actions">
-                <button class="btn btn-primary" id="btn-open-add-trade">
+                <button class="btn btn-primary hide-mobile" id="btn-open-add-trade">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span>Thêm Lệnh Mới</span>
                 </button>
-                <button class="btn btn-secondary" id="btn-export-csv" title="Xuất dữ liệu ra file CSV">
+                <button class="btn btn-secondary hide-mobile" id="btn-export-csv" title="Xuất dữ liệu ra file CSV">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    <span class="hide-mobile">Xuất CSV</span>
+                    <span>Xuất CSV</span>
                 </button>
                 <button class="btn btn-icon" id="btn-refresh" title="Làm mới dữ liệu">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -73,9 +73,12 @@
                 <!-- MT5 ACCOUNT SWITCHER DROPDOWN -->
                 <div class="mt5-account-dropdown" id="mt5-account-dropdown">
                     <button type="button" class="btn-account-switcher" id="btn-account-switcher" title="Chuyển đổi tài khoản MT5">
-                        <span class="account-status-dot"></span>
-                        <span class="account-name-label" id="current-account-label">Tất Cả Tài Khoản</span>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        <div class="account-switcher-left">
+                            <span class="account-status-dot"></span>
+                            <span class="mt5-badge-pill">MT5</span>
+                            <span class="account-name-label" id="current-account-label">Tất Cả Tài Khoản</span>
+                        </div>
+                        <svg class="account-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </button>
                     <div class="account-dropdown-menu" id="account-dropdown-menu">
                         <div class="dropdown-header">TÀI KHOẢN MT5</div>
