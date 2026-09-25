@@ -337,4 +337,7 @@ if __name__ == "__main__":
         traceback.print_exc()
         print("!" * 65, flush=True)
     finally:
-        input("\nNhấn Enter để thoát...")
+        try:
+            input("\nNhấn Enter để thoát...")
+        except (EOFError, KeyboardInterrupt):
+            pass
