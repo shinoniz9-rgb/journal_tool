@@ -623,7 +623,7 @@ def mt5_webhook():
     # 2. Xử lý thông tin lệnh đóng
     # Bỏ qua nếu lệnh không phải lệnh đóng (deal entry out)
     deal_type = str(payload.get("type") or payload.get("deal_type") or payload.get("action") or "BUY").upper()
-    trade_type = "Long" if "BUY" in deal_type else "Short"
+    trade_type = "Long" if ("BUY" in deal_type or "LONG" in deal_type) else "Short"
     
     # Chuẩn hóa Symbol: XAUUSD -> XAU/USD, BTCUSD -> BTC/USD
     raw_symbol = str(payload.get("symbol") or "XAU/USD").strip().upper()
@@ -668,7 +668,7 @@ def mt5_webhook():
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     close_time = payload.get("close_time") or payload.get("time") or now_str
     
-    # 3. Kiểm tra chống trùng lặp lệnh (Duplicate Prevention)
+    # 3. Kiểm tra chống trùng lặp lệnh (Duplicate Prevention) & Cập nhật dữ liệu
     ticket = str(payload.get("ticket") or payload.get("deal_id") or payload.get("deal") or "").strip()
     with db.get_connection() as conn:
         cursor = conn.cursor()
@@ -677,7 +677,35 @@ def mt5_webhook():
             existing = cursor.fetchone()
             if existing:
                 existing_id = existing["id"] if isinstance(existing, dict) else existing[0]
-                return jsonify({"status": "skipped", "message": f"Lệnh #{ticket} đã tồn tại trong nhật ký", "trade_id": existing_id}), 200
+                cursor.execute("""
+                    UPDATE trades SET
+                        symbol = ?,
+                        trade_type = ?,
+                        entry_price = ?,
+                        exit_price = ?,
+                        pnl = ?,
+                        fees = ?,
+                        pnl_percent = ?,
+                        entry_date = ?,
+                        exit_date = ?,
+                        updated_at = ?
+                    WHERE id = ? AND user_id = ?
+                """, (
+                    symbol,
+                    trade_type,
+                    entry_price,
+                    exit_price,
+                    net_pnl,
+                    fee_val,
+                    pnl_percent,
+                    payload.get("open_time") or close_time,
+                    close_time,
+                    now_str,
+                    existing_id,
+                    user_id
+                ))
+                conn.commit()
+                return jsonify({"status": "updated", "message": f"Đã cập nhật lệnh #{ticket}", "trade_id": existing_id}), 200
                 
         # Kiểm tra thêm theo các thông số khớp lệnh để đảm bảo 100% không bị nhân đôi
         cursor.execute(

@@ -84,36 +84,33 @@ def main():
     for deal in deals:
         # Chỉ lấy các lệnh đóng (DEAL_ENTRY_OUT hoặc DEAL_ENTRY_INOUT) có mã giao dịch
         if deal.entry in (mt5.DEAL_ENTRY_OUT, mt5.DEAL_ENTRY_INOUT) and deal.symbol:
+            pos_id = getattr(deal, "position_id", None)
+            pos_deals = [d for d in deals if d.position_id == pos_id] if pos_id else [deal]
+            in_deals = [d for d in pos_deals if d.entry == mt5.DEAL_ENTRY_IN]
+            in_deal = in_deals[0] if in_deals else None
+            
             close_time = datetime.fromtimestamp(deal.time).strftime("%Y-%m-%d %H:%M:%S")
             exit_price = float(deal.price)
-            
-            # Tìm lệnh mở tương ứng (DEAL_ENTRY_IN) theo position_id
-            in_deal = None
-            if getattr(deal, "position_id", None):
-                for d in deals:
-                    if d.position_id == deal.position_id and d.entry == mt5.DEAL_ENTRY_IN:
-                        in_deal = d
-                        break
 
             if in_deal:
+                trade_type = "Long" if in_deal.type == mt5.DEAL_TYPE_BUY else "Short"
                 entry_price = float(in_deal.price)
                 open_time = datetime.fromtimestamp(in_deal.time).strftime("%Y-%m-%d %H:%M:%S")
-                trade_type = "Long" if in_deal.type == mt5.DEAL_TYPE_BUY else "Short"
             else:
+                trade_type = "Long" if deal.type == mt5.DEAL_TYPE_SELL else "Short"
                 entry_price = exit_price
                 open_time = close_time
-                trade_type = "Long" if deal.type == mt5.DEAL_TYPE_SELL else "Short"
 
-            # Tính toán chi phí sàn: Hoa hồng (Commission) và Phí qua đêm (Swap)
+            # Tổng hợp toàn bộ Phí hoa hồng (Commission), Phí qua đêm (Swap) và Phí sàn (Fee) của toàn bộ vị thế này (cả chiều mở và đóng)
             gross_profit = float(deal.profit)
-            commission = float(getattr(deal, "commission", 0.0) or 0.0)
-            swap = float(getattr(deal, "swap", 0.0) or 0.0)
-            fee = float(getattr(deal, "fee", 0.0) or 0.0)
+            total_comm = sum(float(getattr(d, "commission", 0.0) or 0.0) for d in pos_deals)
+            total_swap = sum(float(getattr(d, "swap", 0.0) or 0.0) for d in pos_deals)
+            total_fee = sum(float(getattr(d, "fee", 0.0) or 0.0) for d in pos_deals)
             
             # Tổng phí giao dịch của lệnh
-            total_fees = round(abs(commission) + abs(fee) + (abs(swap) if swap < 0 else 0.0), 2)
+            total_fees = round(abs(total_comm) + abs(total_fee) + (abs(total_swap) if total_swap < 0 else 0.0), 2)
             # Lợi nhuận ròng thực nhận/mất vào tài khoản
-            net_profit = round(gross_profit + commission + swap + fee, 2)
+            net_profit = round(gross_profit + total_comm + total_swap + total_fee, 2)
 
             payload = {
                 "login": str(login_num),
@@ -125,8 +122,8 @@ def main():
                 "entry_price": entry_price,
                 "exit_price": exit_price,
                 "profit": float(gross_profit),
-                "commission": float(commission),
-                "swap": float(swap),
+                "commission": float(total_comm),
+                "swap": float(total_swap),
                 "fees": float(total_fees),
                 "net_profit": float(net_profit),
                 "volume": float(deal.volume),
@@ -138,12 +135,18 @@ def main():
 
             try:
                 res = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+                pnl_str = f"+${net_profit:.2f}" if net_profit >= 0 else f"-${abs(net_profit):.2f}"
+                fee_info = f" (Phí: -${total_fees:.2f})" if total_fees > 0 else ""
                 if res.status_code == 201:
-                    pnl_str = f"+${net_profit:.2f}" if net_profit >= 0 else f"-${abs(net_profit):.2f}"
-                    fee_info = f" (Phí: -${total_fees:.2f})" if total_fees > 0 else ""
                     print(f"    [+] THÊM MỚI: {deal.symbol} {trade_type} | Net PnL: {pnl_str}{fee_info} | Vé #{deal.ticket} lúc {close_time}")
                     acc_new += 1
                 elif res.status_code == 200:
+                    try:
+                        resp_json = res.json()
+                    except Exception:
+                        resp_json = {}
+                    if resp_json.get("status") == "updated":
+                        print(f"    [✔] CẬP NHẬT: {deal.symbol} {trade_type} | Net PnL: {pnl_str}{fee_info} | Vé #{deal.ticket}")
                     acc_skipped += 1
                 else:
                     print(f"    [!] Máy chủ phản hồi mã {res.status_code} cho vé #{deal.ticket}")

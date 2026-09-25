@@ -796,7 +796,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tbodyFrag = document.createDocumentFragment();
         const cardsFrag = document.createDocumentFragment();
 
-        trades.forEach(t => {
+        trades.forEach((t, index) => {
             const tr = document.createElement("tr");
 
             const isLong = (t.trade_type || "Long").toLowerCase() === "long";
@@ -831,7 +831,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const dateStr = t.entry_date ? t.entry_date.substring(5, 16) : "-";
-            const displayId = (trades.length === 1 && t.id > 1) ? 1 : t.id;
+            const displayId = trades.length - index;
 
             const fees = Number(t.fees || 0);
             let feesHtml = '<span class="text-muted mono" style="font-size:12px;">$0.00</span>';
