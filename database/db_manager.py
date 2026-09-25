@@ -694,12 +694,18 @@ class DatabaseManager:
     def get_mt5_account_by_login(self, server: str, login: str) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM mt5_accounts WHERE login = ? AND (server LIKE ? OR ? LIKE '%' || server || '%') LIMIT 1", (str(login).strip(), f"%{server.strip()}%", server.strip()))
-            row = cursor.fetchone()
-            if not row:
-                cursor.execute("SELECT * FROM mt5_accounts WHERE login = ? LIMIT 1", (str(login).strip(),))
-                row = cursor.fetchone()
-            return dict(row) if row else None
+            cursor.execute("SELECT * FROM mt5_accounts WHERE login = ?", (str(login).strip(),))
+            rows = cursor.fetchall()
+            if not rows:
+                return None
+            clean_server = server.strip().lower()
+            if clean_server:
+                for r in rows:
+                    item = dict(r)
+                    acc_server = (item.get("server") or "").strip().lower()
+                    if clean_server in acc_server or acc_server in clean_server:
+                        return item
+            return dict(rows[0])
 
     def update_mt5_balance(self, account_id: int, balance: float, equity: Optional[float] = None) -> bool:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

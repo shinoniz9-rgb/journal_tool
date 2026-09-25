@@ -676,7 +676,8 @@ def mt5_webhook():
             cursor.execute("SELECT id FROM trades WHERE user_id = ? AND notes LIKE ? LIMIT 1", (user_id, f"%#{ticket}%"))
             existing = cursor.fetchone()
             if existing:
-                return jsonify({"status": "skipped", "message": f"Lệnh #{ticket} đã tồn tại trong nhật ký", "trade_id": existing[0]}), 200
+                existing_id = existing["id"] if isinstance(existing, dict) else existing[0]
+                return jsonify({"status": "skipped", "message": f"Lệnh #{ticket} đã tồn tại trong nhật ký", "trade_id": existing_id}), 200
                 
         # Kiểm tra thêm theo các thông số khớp lệnh để đảm bảo 100% không bị nhân đôi
         cursor.execute(
@@ -685,7 +686,8 @@ def mt5_webhook():
         )
         existing_match = cursor.fetchone()
         if existing_match:
-            return jsonify({"status": "skipped", "message": "Lệnh đã tồn tại trong nhật ký", "trade_id": existing_match[0]}), 200
+            existing_match_id = existing_match["id"] if isinstance(existing_match, dict) else existing_match[0]
+            return jsonify({"status": "skipped", "message": "Lệnh đã tồn tại trong nhật ký", "trade_id": existing_match_id}), 200
 
     ticket_note = f"MT5 #{ticket}" if ticket else "MT5 Sync"
     acc_label = acc['account_name'] if acc else 'Tài khoản MT5'
