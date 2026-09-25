@@ -1496,6 +1496,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return "";
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     // ==========================================
     // MT5 MULTI-ACCOUNT MANAGEMENT & SWITCHER
     // ==========================================
@@ -2016,6 +2026,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (btnOpenAddMt5Modal && modalMt5) {
             btnOpenAddMt5Modal.addEventListener("click", () => {
                 if (accountDropdownMenu) accountDropdownMenu.classList.remove("active");
+                const alertEl = document.getElementById("mt5-form-alert");
+                if (alertEl) alertEl.style.display = "none";
+                loadMt5Accounts();
                 modalMt5.classList.add("active");
             });
         }
@@ -2052,7 +2065,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ account_name: name, server, login, password, balance })
                     });
-                    const data = await res.json();
+                    let data = {};
+                    try {
+                        data = await res.json();
+                    } catch (jsonErr) {
+                        data = { error: `Máy chủ phản hồi mã ${res.status}. Vui lòng thử lại sau giây lát!` };
+                    }
+
                     if (!res.ok) {
                         if (alertEl) {
                             alertEl.textContent = data.error || "Thất bại!";
@@ -2061,16 +2080,22 @@ document.addEventListener("DOMContentLoaded", () => {
                         return;
                     }
 
-                    showToast("Đã thêm tài khoản MT5 thành công!", "success");
-                    formAddMt5.reset();
-                    await loadMt5Accounts();
-                    if (data.account_id) {
-                        await switchMt5Account(data.account_id);
-                    }
+                    // Lưu thành công: Đóng modal và reset form ngay lập tức
                     closeMt5Modal();
+                    formAddMt5.reset();
+                    showToast(data.message || "Đã lưu tài khoản MT5 thành công!", "success");
+
+                    try {
+                        await loadMt5Accounts();
+                        if (data.account_id) {
+                            await switchMt5Account(data.account_id);
+                        }
+                    } catch (uiErr) {
+                        console.error("Lỗi cập nhật danh sách MT5:", uiErr);
+                    }
                 } catch (err) {
                     if (alertEl) {
-                        alertEl.textContent = "Lỗi kết nối máy chủ!";
+                        alertEl.textContent = "Không thể kết nối đến máy chủ Web (Backend đang khởi động hoặc mất mạng). Vui lòng thử lại sau vài giây!";
                         alertEl.style.display = "block";
                     }
                 }

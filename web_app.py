@@ -533,6 +533,12 @@ def add_mt5_account():
     if not account_name:
         return jsonify({"error": "Vui lòng nhập Tên Gợi Nhớ cho tài khoản (ví dụ: Binance, Bybit, Exness...)"}), 400
 
+    # Nếu tài khoản này đã có sẵn của user, cập nhật thông tin thay vì tạo trùng lặp
+    existing = db.get_mt5_account_by_login(server=server, login=login)
+    if existing and existing.get("user_id") == user_id:
+        db.update_mt5_balance(account_id=existing["id"], balance=balance)
+        return jsonify({"success": True, "account_id": existing["id"], "message": "Tài khoản đã tồn tại, đã cập nhật thông tin!"}), 200
+
     acc_id = db.add_mt5_account(
         user_id=user_id,
         account_name=account_name,

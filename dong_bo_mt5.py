@@ -40,8 +40,8 @@ def main():
     if not mt5.initialize():
         print("\n[-] Không thể kết nối với phần mềm MetaTrader 5 trên máy tính!")
         print("    Vui lòng kiểm tra:")
-        print("    1. Phần mềm MetaTrader 5 (MT5) đã được mở và đăng nhập tài khoản.")
-        print("    2. Cho phép kết nối tự động trong MT5 (Tools -> Options -> Expert Advisors -> Allow Algo Trading).")
+        print("    1. Phần mềm MetaTrader 5 (MT5) đã được mở và đã đăng nhập tài khoản.")
+        print("    2. Kiểm tra biểu tượng kết nối mạng góc dưới bên phải MT5 đã có vạch sóng xanh.")
         print(f"    Mã lỗi MT5: {mt5.last_error()}\n")
         return
 
