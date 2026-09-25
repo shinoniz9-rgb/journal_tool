@@ -618,9 +618,11 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-max-losses").textContent = `${stats.max_consecutive_losses || 0}L`;
         // 3. Xử lý giao diện sửa vốn ban đầu:
         // - Khi ở "Tất Cả Tài Khoản": Tự động cộng tổng từ các tài khoản con, không thể sửa trực tiếp
-        // - Khi ở tài khoản con Quỹ / Sàn cụ thể: Nhấp vào dòng phụ để sửa vốn ban đầu của tài khoản đó
+        // - Khi ở tài khoản LIÊN KẾT ĐỒNG BỘ: Khóa vốn ban đầu, không cho sửa tay để bảo toàn dữ liệu sàn
+        // - Khi ở tài khoản KHÔNG LIÊN KẾT (Ghi tay): Cho phép nhấp vào dòng phụ để sửa vốn ban đầu
         const isAllAccounts = state.currentMt5AccountId === "all";
         const totalAccs = state.mt5Accounts ? state.mt5Accounts.length : 0;
+        const isLinked = stats && stats.is_linked;
 
         if (elements.btnQuickEditCapital) {
             if (isAllAccounts) {
@@ -631,7 +633,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 elements.btnQuickEditCapital.style.color = "var(--text-muted)";
                 elements.btnQuickEditCapital.style.opacity = "0.75";
                 elements.btnQuickEditCapital.title = "Vốn này là tổng hợp tự động từ các tài khoản con, không thể sửa trực tiếp.";
+            } else if (isLinked) {
+                // Tài khoản liên kết đồng bộ với sàn: KHÓA VỐN BAN ĐẦU
+                elements.btnQuickEditCapital.textContent = "🔒 Khóa tự động theo sàn liên kết";
+                elements.btnQuickEditCapital.style.cursor = "default";
+                elements.btnQuickEditCapital.style.color = "var(--text-muted)";
+                elements.btnQuickEditCapital.style.opacity = "0.85";
+                elements.btnQuickEditCapital.title = "Tài khoản này được đồng bộ trực tiếp từ sàn, vốn ban đầu được bảo toàn tự động và không thể chỉnh sửa tay.";
             } else {
+                // Tài khoản ghi chép thủ công: CHO PHÉP CHỈNH SỬA
                 elements.btnQuickEditCapital.textContent = "✏️ Nhấp để sửa vốn ban đầu";
                 elements.btnQuickEditCapital.style.cursor = "pointer";
                 elements.btnQuickEditCapital.style.color = "var(--accent-cyan)";
@@ -1691,9 +1701,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const card = document.createElement("div");
             card.className = "mt5-card-item";
             const initialCapVal = acc.initial_capital || acc.balance || 0;
+            const isAccLinked = Boolean(acc.is_linked || (acc.server && acc.server.toLowerCase() !== "manual" && Number(acc.balance || 0) > 0));
+            const typeBadge = isAccLinked 
+                ? '<span style="display:inline-block; font-size:10.5px; padding:1px 6px; border-radius:4px; background:rgba(56,189,248,0.12); color:var(--accent-cyan); font-weight:600; margin-left:6px;">🔒 Đồng bộ sàn</span>'
+                : '<span style="display:inline-block; font-size:10.5px; padding:1px 6px; border-radius:4px; background:rgba(255,255,255,0.07); color:var(--text-muted); font-weight:600; margin-left:6px;">✍️ Thủ công</span>';
+
             card.innerHTML = `
                 <div class="mt5-card-details">
-                    <div class="mt5-card-title">${escapeHtml(acc.account_name)}</div>
+                    <div class="mt5-card-title">${escapeHtml(acc.account_name)} ${typeBadge}</div>
                     <div class="mt5-card-meta">
                         ${escapeHtml(acc.server)} • ID: <code>${escapeHtml(acc.login)}</code> • Vốn đầu: <strong style="color:var(--accent-cyan);">$${Number(initialCapVal).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2})}</strong>
                     </div>
@@ -2000,6 +2015,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (elements.btnQuickEditCapital) {
             elements.btnQuickEditCapital.addEventListener("click", () => {
                 if (state.currentMt5AccountId === "all") return;
+                if (state.stats && state.stats.is_linked) {
+                    showToast("Tài khoản này được đồng bộ trực tiếp từ sàn, vốn ban đầu được bảo toàn tự động và khóa chỉnh sửa.", "info");
+                    return;
+                }
                 showCapitalEditMode();
             });
         }
@@ -2139,6 +2158,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 const login = document.getElementById("mt5-login").value.trim();
                 const password = document.getElementById("mt5-password").value.trim();
                 const balance = parseFloat(document.getElementById("mt5-balance").value) || 0;
+                const accountTypeEl = document.getElementById("mt5-account-type");
+                const accountType = accountTypeEl ? accountTypeEl.value : "linked";
 
                 const alertEl = document.getElementById("mt5-form-alert");
                 if (alertEl) alertEl.style.display = "none";
@@ -2147,7 +2168,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     const res = await authFetch("/api/mt5/accounts", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ account_name: name, server, login, password, balance, initial_capital: balance })
+                        body: JSON.stringify({ 
+                            account_name: name, 
+                            server, 
+                            login, 
+                            password, 
+                            balance, 
+                            initial_capital: balance,
+                            account_type: accountType
+                        })
                     });
                     let data = {};
                     try {

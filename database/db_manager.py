@@ -201,7 +201,7 @@ class DatabaseManager:
                 );
                 """)
 
-                # Kiểm tra cột initial_capital trong mt5_accounts (PostgreSQL)
+                # Kiểm tra cột initial_capital và is_linked trong mt5_accounts (PostgreSQL)
                 try:
                     cursor.execute("""
                         SELECT column_name FROM information_schema.columns 
@@ -211,8 +211,11 @@ class DatabaseManager:
                     if "initial_capital" not in mt5_cols:
                         cursor.execute("ALTER TABLE mt5_accounts ADD COLUMN initial_capital DOUBLE PRECISION DEFAULT 0.0;")
                         cursor.execute("UPDATE mt5_accounts SET initial_capital = balance WHERE initial_capital IS NULL OR initial_capital = 0;")
+                    if "is_linked" not in mt5_cols:
+                        cursor.execute("ALTER TABLE mt5_accounts ADD COLUMN is_linked INTEGER DEFAULT 0;")
+                        cursor.execute("UPDATE mt5_accounts SET is_linked = 1 WHERE server IS NOT NULL AND LOWER(server) != 'manual';")
                 except Exception as e:
-                    print(f"[!] Migration mt5_accounts initial_capital failed: {e}")
+                    print(f"[!] Migration mt5_accounts failed: {e}")
 
                 # 3. Bảng Trades (PostgreSQL)
                 cursor.execute("""
@@ -323,6 +326,12 @@ class DatabaseManager:
                     try:
                         cursor.execute("ALTER TABLE mt5_accounts ADD COLUMN initial_capital REAL DEFAULT 0.0;")
                         cursor.execute("UPDATE mt5_accounts SET initial_capital = balance WHERE initial_capital IS NULL OR initial_capital = 0;")
+                    except Exception:
+                        pass
+                if "is_linked" not in mt5_columns:
+                    try:
+                        cursor.execute("ALTER TABLE mt5_accounts ADD COLUMN is_linked INTEGER DEFAULT 0;")
+                        cursor.execute("UPDATE mt5_accounts SET is_linked = 1 WHERE server IS NOT NULL AND LOWER(server) != 'manual';")
                     except Exception:
                         pass
 
@@ -678,7 +687,7 @@ class DatabaseManager:
     # ==========================================
     # CÁC HÀM QUẢN LÝ TÀI KHOẢN MT5 (MULTI-ACCOUNT)
     # ==========================================
-    def add_mt5_account(self, user_id: int, account_name: str, server: str, login: str, password: str, balance: float = 0.0, metaapi_account_id: Optional[str] = None, initial_capital: Optional[float] = None) -> int:
+    def add_mt5_account(self, user_id: int, account_name: str, server: str, login: str, password: str, balance: float = 0.0, metaapi_account_id: Optional[str] = None, initial_capital: Optional[float] = None, is_linked: int = 0) -> int:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         init_cap = float(initial_capital if initial_capital is not None else balance)
         with self.get_connection() as conn:
@@ -686,9 +695,9 @@ class DatabaseManager:
             cursor.execute("""
             INSERT INTO mt5_accounts (
                 user_id, account_name, server, login, password,
-                metaapi_account_id, balance, equity, initial_capital, currency, is_active,
+                metaapi_account_id, balance, equity, initial_capital, currency, is_active, is_linked,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'USD', 1, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'USD', 1, ?, ?, ?)
             """, (
                 user_id,
                 account_name.strip() if account_name else f"MT5 #{login}",
@@ -699,11 +708,20 @@ class DatabaseManager:
                 float(balance or 0.0),
                 float(balance or 0.0),
                 init_cap,
+                int(is_linked),
                 now,
                 now
             ))
             conn.commit()
             return cursor.lastrowid
+
+    def set_mt5_account_linked(self, account_id: int, is_linked: int = 1) -> bool:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE mt5_accounts SET is_linked = ?, updated_at = ? WHERE id = ?", (int(is_linked), now, account_id))
+            conn.commit()
+            return cursor.rowcount > 0
 
     def update_mt5_initial_capital(self, account_id: int, initial_capital: float, user_id: Optional[int] = None) -> bool:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

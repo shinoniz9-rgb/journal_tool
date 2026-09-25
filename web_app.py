@@ -258,6 +258,7 @@ def get_stats():
     
     all_sub_accounts = db.get_mt5_accounts(user_id=user_id)
 
+    is_linked = False
     if mt5_account_id and str(mt5_account_id).lower() not in ("all", "", "none"):
         # Khi chọn 1 tài khoản con Quỹ / Sàn cụ thể (The5ers, FTMO, Binance...):
         try:
@@ -266,6 +267,7 @@ def get_stats():
                 acc_balance = float(acc.get("balance") or 0.0)
                 init_cap = float(acc.get("initial_capital") or 0.0)
                 closed_pnl = sum(float(t.get("pnl") or 0.0) for t in trades if t.get("status") == "Closed")
+                is_linked = bool(acc.get("is_linked") or (acc.get("server") and acc.get("server").lower() != "manual" and acc_balance > 0))
 
                 # Tự động nhận diện vốn ban đầu chuẩn xác nếu chưa từng sửa tay hoặc bị gán nhầm bằng balance hiện tại
                 if init_cap <= 0 or (abs(init_cap - acc_balance) < 0.01 and closed_pnl != 0):
@@ -320,6 +322,7 @@ def get_stats():
     stats["has_sub_accounts"] = len(all_sub_accounts) > 0
     stats["sub_accounts_count"] = len(all_sub_accounts)
     stats["current_view_account"] = mt5_account_id or "all"
+    stats["is_linked"] = is_linked
     return jsonify(stats)
 
 
@@ -589,6 +592,11 @@ def add_mt5_account():
         import time
         login = f"ACC_{int(time.time() * 1000) % 10000000}"
 
+    account_type = str(data.get("account_type", "linked")).lower()
+    is_linked_val = 1 if account_type == "linked" else 0
+    if not login_raw and server.lower() == "manual":
+        is_linked_val = 0
+
     acc_id = db.add_mt5_account(
         user_id=user_id,
         account_name=account_name,
@@ -596,7 +604,8 @@ def add_mt5_account():
         login=login,
         password=password,
         balance=balance,
-        initial_capital=initial_capital
+        initial_capital=initial_capital,
+        is_linked=is_linked_val
     )
     return jsonify({"success": True, "account_id": acc_id, "message": "Đã thêm tài khoản thành công!"}), 201
 
@@ -606,6 +615,15 @@ def update_mt5_account_initial_capital(account_id):
     user_id = get_current_user_id()
     data = request.json or {}
     try:
+        acc = db.get_mt5_account(account_id=account_id, user_id=user_id)
+        if not acc:
+            return jsonify({"error": "Không tìm thấy tài khoản"}), 404
+        
+        # Kiểm tra xem tài khoản này có phải tài khoản liên kết với sàn không
+        is_linked = bool(acc.get("is_linked") or (acc.get("server") and acc.get("server").lower() != "manual" and acc.get("balance", 0) > 0))
+        if is_linked:
+            return jsonify({"error": "Tài khoản liên kết với sàn không thể chỉnh sửa vốn ban đầu thủ công. Dữ liệu vốn được bảo toàn tự động từ sàn."}), 400
+
         initial_capital = float(data.get("initial_capital", 0.0))
         if initial_capital < 0:
             return jsonify({"error": "Vốn ban đầu không thể âm"}), 400
@@ -658,6 +676,7 @@ def mt5_check_account():
             "message": f"Tài khoản MT5 #{login} ({server}) chưa được liên kết với bất kỳ người dùng nào trên Web. Vui lòng đăng nhập Web -> 'Quản Lý Tài Khoản MT5' để thêm trước."
         }), 404
         
+    db.set_mt5_account_linked(account_id=acc["id"], is_linked=1)
     user = db.get_user_by_id(acc["user_id"])
     username = user["username"] if user else f"User_{acc['user_id']}"
     
@@ -714,6 +733,7 @@ def mt5_webhook():
     else:
         user_id = acc["user_id"]
         mt5_acc_id = acc["id"]
+        db.set_mt5_account_linked(account_id=mt5_acc_id, is_linked=1)
 
     # Cập nhật số dư Balance nếu webhook có gửi kèm
     new_balance = payload.get("balance") or payload.get("account_balance")
