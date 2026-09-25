@@ -556,19 +556,16 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const subEl = document.getElementById("kpi-pnl-sub");
         if (subEl) {
-            const closedCount = stats.closed_trades_count || 0;
-            if (closedCount === 0) {
-                subEl.innerHTML = `<span class="text-muted">0 lệnh đã đóng</span>`;
-            } else {
-                const grossPnl = stats.gross_pnl || 0;
-                const totalFees = stats.total_fees || 0;
-                const grossSign = grossPnl > 0 ? "+" : (grossPnl < 0 ? "-" : "");
-                const grossFormatted = `${grossSign}$${Math.abs(grossPnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                const feesSign = totalFees > 0 ? "-" : (totalFees < 0 ? "+" : "");
-                const feesFormatted = `${feesSign}$${Math.abs(totalFees).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                
-                subEl.innerHTML = `Lãi gộp: <span class="${grossPnl >= 0 ? 'text-win' : 'text-loss'} font-bold">${grossFormatted}</span> | Phí: <span class="${totalFees > 0 ? 'text-loss' : 'text-muted'} font-bold">${feesFormatted}</span>`;
-            }
+            const grossPnl = stats.gross_pnl || 0;
+            const totalFees = stats.total_fees || 0;
+            const grossSign = grossPnl > 0 ? "+" : (grossPnl < 0 ? "-" : "");
+            const grossFormatted = `${grossSign}$${Math.abs(grossPnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const feesSign = totalFees > 0 ? "-" : (totalFees < 0 ? "+" : "");
+            const feesFormatted = `${feesSign}$${Math.abs(totalFees).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const grossColorClass = grossPnl > 0 ? "text-win" : (grossPnl < 0 ? "text-loss" : "text-muted");
+            const feesColorClass = totalFees > 0 ? "text-loss" : (totalFees < 0 ? "text-win" : "text-muted");
+            
+            subEl.innerHTML = `Lãi gộp: <span class="${grossColorClass} font-bold">${grossFormatted}</span> | Phí: <span class="${feesColorClass} font-bold">${feesFormatted}</span>`;
         }
 
         const wrEl = document.getElementById("kpi-win-rate");

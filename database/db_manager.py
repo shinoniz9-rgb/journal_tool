@@ -327,7 +327,14 @@ class DatabaseManager:
                     "INSERT INTO users (username, password_hash, display_name, initial_capital, created_at) VALUES (?, ?, ?, ?, ?)",
                     ("admin", pwd_hash, "Admin Trader", 1000.0, now)
                 )
-                conn.commit()
+            if self.is_postgres:
+                try:
+                    cursor.execute("ALTER TABLE trades ADD COLUMN IF NOT EXISTS mt5_ticket VARCHAR(100) DEFAULT NULL;")
+                    cursor.execute("ALTER TABLE trades ADD COLUMN IF NOT EXISTS mt5_account_id INTEGER DEFAULT NULL;")
+                    cursor.execute("ALTER TABLE trades ADD COLUMN IF NOT EXISTS fees DOUBLE PRECISION DEFAULT 0.0;")
+                    conn.commit()
+                except Exception:
+                    pass
             # Tối ưu hóa hiệu năng truy vấn siêu tốc bằng Database Index
             try:
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_user_id ON trades(user_id);")
