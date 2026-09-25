@@ -571,6 +571,38 @@ def update_mt5_account_balance(account_id):
     db.update_mt5_balance(account_id=account_id, balance=balance, equity=equity)
     return jsonify({"success": True, "balance": balance})
 
+@app.route("/api/mt5/check_account", methods=["POST"])
+def mt5_check_account():
+    """
+    Kiểm tra xem số tài khoản MT5 đang hoạt động trên máy tính đã được
+    liên kết với người dùng nào trên Website chưa.
+    """
+    payload = request.json or {}
+    login = str(payload.get("login") or "").strip()
+    server = str(payload.get("server") or "").strip()
+    
+    if not login:
+        return jsonify({"status": "error", "error": "Thiếu số tài khoản MT5"}), 400
+        
+    acc = db.get_mt5_account_by_login(server=server, login=login)
+    if not acc:
+        return jsonify({
+            "status": "not_found",
+            "message": f"Tài khoản MT5 #{login} ({server}) chưa được liên kết với bất kỳ người dùng nào trên Web. Vui lòng đăng nhập Web -> 'Quản Lý Tài Khoản MT5' để thêm trước."
+        }), 404
+        
+    user = db.get_user_by_id(acc["user_id"])
+    username = user["username"] if user else f"User_{acc['user_id']}"
+    
+    return jsonify({
+        "status": "ok",
+        "user_id": acc["user_id"],
+        "username": username,
+        "account_name": acc.get("account_name") or "Tài khoản MT5",
+        "account_id": acc["id"],
+        "balance": acc.get("balance", 0.0)
+    })
+
 @app.route("/api/mt5/webhook", methods=["POST"])
 def mt5_webhook():
     """
@@ -605,7 +637,11 @@ def mt5_webhook():
             acc = accounts[0]
             
     if not acc:
-        # Nếu chưa cấu hình tài khoản nào, fallback về user_id = 1
+        if login:
+            return jsonify({
+                "status": "error",
+                "error": f"Tài khoản MT5 #{login} ({server}) chưa được liên kết với bất kỳ người dùng nào trên Web. Vui lòng đăng nhập Web -> 'Quản Lý Tài Khoản' để thêm trước."
+            }), 404
         user_id = 1
         mt5_acc_id = None
     else:
@@ -705,7 +741,9 @@ def mt5_webhook():
                     user_id
                 ))
                 conn.commit()
-                return jsonify({"status": "updated", "message": f"Đã cập nhật lệnh #{ticket}", "trade_id": existing_id}), 200
+                target_user = db.get_user_by_id(user_id)
+                target_username = target_user["username"] if target_user else f"User_{user_id}"
+                return jsonify({"status": "updated", "message": f"Đã cập nhật lệnh #{ticket}", "trade_id": existing_id, "username": target_username}), 200
                 
         # Kiểm tra thêm theo các thông số khớp lệnh để đảm bảo 100% không bị nhân đôi
         cursor.execute(
@@ -715,7 +753,9 @@ def mt5_webhook():
         existing_match = cursor.fetchone()
         if existing_match:
             existing_match_id = existing_match["id"] if isinstance(existing_match, dict) else existing_match[0]
-            return jsonify({"status": "skipped", "message": "Lệnh đã tồn tại trong nhật ký", "trade_id": existing_match_id}), 200
+            target_user = db.get_user_by_id(user_id)
+            target_username = target_user["username"] if target_user else f"User_{user_id}"
+            return jsonify({"status": "skipped", "message": "Lệnh đã tồn tại trong nhật ký", "trade_id": existing_match_id, "username": target_username}), 200
 
     ticket_note = f"MT5 #{ticket}" if ticket else "MT5 Sync"
     acc_label = acc['account_name'] if acc else 'Tài khoản MT5'
@@ -745,10 +785,13 @@ def mt5_webhook():
     }
 
     trade_id = db.add_trade(user_id=user_id, data=trade_data)
+    target_user = db.get_user_by_id(user_id)
+    target_username = target_user["username"] if target_user else f"User_{user_id}"
     return jsonify({
         "status": "success",
-        "message": "Đã ghi nhận lệnh MT5 thành công",
+        "message": f"Đã ghi nhận lệnh MT5 vào tài khoản {target_username}",
         "trade_id": trade_id,
+        "username": target_username,
         "symbol": symbol,
         "pnl": net_pnl,
         "fees": fee_val
