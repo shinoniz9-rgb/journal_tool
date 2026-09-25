@@ -256,15 +256,10 @@ def get_stats():
     mt5_account_id = request.args.get("mt5_account_id")
     trades = db.get_all_trades(user_id=user_id, order_desc=False, mt5_account_id=mt5_account_id)
     
-    # 1. Vốn ban đầu của tài khoản Ghi Tay (thủ công)
-    manual_capital = db.get_user_capital(user_id=user_id)
-    all_mt5_accounts = db.get_mt5_accounts(user_id=user_id)
+    all_sub_accounts = db.get_mt5_accounts(user_id=user_id)
 
-    if str(mt5_account_id).lower() == "manual":
-        # Khi chọn riêng Tài Khoản Ghi Tay:
-        initial_capital = manual_capital
-    elif mt5_account_id and str(mt5_account_id).lower() not in ("all", "", "none"):
-        # Khi chọn 1 tài khoản con MT5 / Sàn cụ thể:
+    if mt5_account_id and str(mt5_account_id).lower() not in ("all", "", "none"):
+        # Khi chọn 1 tài khoản con Quỹ / Sàn cụ thể (The5ers, FTMO, Binance, Ghi tay...):
         try:
             acc = db.get_mt5_account(account_id=int(mt5_account_id), user_id=user_id)
             if acc:
@@ -273,29 +268,25 @@ def get_stats():
                     init_cap = float(acc.get("balance") or 0.0)
                 initial_capital = max(0.0, init_cap)
             else:
-                initial_capital = manual_capital
+                initial_capital = db.get_user_capital(user_id=user_id)
         except Exception:
-            initial_capital = manual_capital
+            initial_capital = db.get_user_capital(user_id=user_id)
     else:
-        # Khi chọn "Tất Cả Tài Khoản":
+        # Khi chọn "Tất Cả Tài Khoản" (Tổng hợp toàn bộ danh mục):
         # TỔNG TOÀN BỘ VỐN BAN ĐẦU CỦA CÁC TÀI KHOẢN CON
-        if not all_mt5_accounts:
-            # Nếu chưa có tài khoản MT5 nào: chính là vốn tài khoản ghi tay
-            initial_capital = manual_capital
-        else:
-            # Tổng vốn ban đầu của các tài khoản MT5 con
-            total_mt5_initial = sum(
+        if all_sub_accounts:
+            total_initial = sum(
                 float(acc.get("initial_capital") or acc.get("balance") or 0.0)
-                for acc in all_mt5_accounts
+                for acc in all_sub_accounts
             )
-            # Tổng vốn ban đầu = Vốn ghi tay + Tổng vốn các tài khoản con MT5
-            initial_capital = round(manual_capital + total_mt5_initial, 2)
-            if initial_capital <= 0:
-                initial_capital = manual_capital
+            initial_capital = round(total_initial, 2) if total_initial > 0 else db.get_user_capital(user_id=user_id)
+        else:
+            # Nếu chưa tạo tài khoản con nào: dùng vốn mặc định
+            initial_capital = db.get_user_capital(user_id=user_id)
 
     stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
-    stats["manual_initial_capital"] = manual_capital
-    stats["has_mt5_accounts"] = len(all_mt5_accounts) > 0
+    stats["has_sub_accounts"] = len(all_sub_accounts) > 0
+    stats["sub_accounts_count"] = len(all_sub_accounts)
     stats["current_view_account"] = mt5_account_id or "all"
     return jsonify(stats)
 
@@ -545,21 +536,26 @@ def add_mt5_account():
     data = request.json or {}
     account_name = data.get("account_name", "").strip()
     server = data.get("server", "").strip() or "Manual"
-    login = data.get("login", "").strip() or "MANUAL"
+    login_raw = data.get("login", "").strip()
     password = data.get("password", "").strip() or "manual"
     balance = float(data.get("balance", 0.0) or 0.0)
     initial_capital = float(data.get("initial_capital", balance) or balance)
 
     if not account_name:
-        return jsonify({"error": "Vui lòng nhập Tên Gợi Nhớ cho tài khoản (ví dụ: Binance, Bybit, Exness...)"}), 400
+        return jsonify({"error": "Vui lòng nhập Tên Gợi Nhớ cho tài khoản (ví dụ: The5ers, FTMO, Binance, Ghi tay...)"}), 400
 
-    # Nếu tài khoản này đã có sẵn của user, cập nhật thông tin thay vì tạo trùng lặp
-    existing = db.get_mt5_account_by_login(server=server, login=login)
-    if existing and existing.get("user_id") == user_id:
-        db.update_mt5_balance(account_id=existing["id"], balance=balance)
-        if initial_capital > 0:
-            db.update_mt5_initial_capital(account_id=existing["id"], initial_capital=initial_capital, user_id=user_id)
-        return jsonify({"success": True, "account_id": existing["id"], "message": "Tài khoản đã tồn tại, đã cập nhật thông tin!"}), 200
+    # Nếu người dùng nhập mã login cụ thể, kiểm tra xem tài khoản này đã có sẵn của user chưa
+    if login_raw:
+        login = login_raw
+        existing = db.get_mt5_account_by_login(server=server, login=login)
+        if existing and existing.get("user_id") == user_id:
+            db.update_mt5_balance(account_id=existing["id"], balance=balance)
+            if initial_capital > 0:
+                db.update_mt5_initial_capital(account_id=existing["id"], initial_capital=initial_capital, user_id=user_id)
+            return jsonify({"success": True, "account_id": existing["id"], "message": "Tài khoản đã tồn tại, đã cập nhật thông tin!"}), 200
+    else:
+        import time
+        login = f"ACC_{int(time.time() * 1000) % 10000000}"
 
     acc_id = db.add_mt5_account(
         user_id=user_id,
