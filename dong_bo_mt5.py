@@ -233,8 +233,12 @@ def main():
     print("      tự động phát hiện khi bạn chuyển sang tài khoản MT5 khác)")
     print("-" * 65, flush=True)
     
-    choice = input("Lựa chọn của bạn [1 hoặc 2, Enter = 1]: ").strip()
-    is_continuous = (choice == "2")
+    if "--auto" in sys.argv:
+        is_continuous = True
+        print(">> Đã tự động kích hoạt chế độ Live Auto-Sync (--auto)\n", flush=True)
+    else:
+        choice = input("Lựa chọn của bạn [1 hoặc 2, Enter = 1]: ").strip()
+        is_continuous = (choice == "2")
 
     if not is_continuous:
         # Chế độ 1 lần
