@@ -856,7 +856,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td class="text-muted" style="font-size:11px;">${dateStr}</td>
                 <td>
                     <div class="row-actions">
-                        <button class="action-btn btn-edit" data-id="${t.id}" title="Chỉnh sửa">
+                        <button class="action-btn btn-edit" data-id="${t.id}" data-stt="${displayId}" title="Chỉnh sửa">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
                         <button class="action-btn btn-delete" data-id="${t.id}" title="Xóa lệnh">
@@ -868,7 +868,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             tr.addEventListener("click", (e) => {
                 if (e.target.closest(".action-btn") || e.target.closest(".chart-thumb")) return;
-                openEditModal(t.id);
+                openEditModal(t.id, displayId);
             });
 
             tbodyFrag.appendChild(tr);
@@ -959,7 +959,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 card.addEventListener("click", (e) => {
                     if (e.target.closest(".tc-btn") || e.target.closest(".chart-thumb")) return;
-                    openEditModal(t.id);
+                    openEditModal(t.id, displayId);
                 });
 
                 cardsFrag.appendChild(card);
@@ -983,7 +983,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll(".btn-edit").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                openEditModal(btn.getAttribute("data-id"));
+                openEditModal(btn.getAttribute("data-id"), btn.getAttribute("data-stt"));
             });
         });
 
@@ -1157,7 +1157,7 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.modalTradeForm.classList.add("active");
     }
 
-    async function openEditModal(tradeId) {
+    async function openEditModal(tradeId, displayId = null) {
         try {
             const res = await authFetch(`/api/trades/${tradeId}`);
             if (res.status === 401) {
@@ -1168,7 +1168,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const trade = await res.json();
 
             elements.formTradeId.value = trade.id;
-            elements.tradeModalTitle.textContent = `Chỉnh Sửa Lệnh #${trade.id} (${trade.symbol})`;
+            const titleStt = displayId ? `#${displayId} ` : '';
+            elements.tradeModalTitle.textContent = `Chỉnh Sửa Lệnh ${titleStt}(${trade.symbol})`;
             elements.btnSaveText.textContent = "Cập Nhật Lệnh";
 
             elements.formSymbol.value = trade.symbol || "BTC/USDT";
