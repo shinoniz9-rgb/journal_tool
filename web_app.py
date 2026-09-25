@@ -259,32 +259,64 @@ def get_stats():
     all_sub_accounts = db.get_mt5_accounts(user_id=user_id)
 
     if mt5_account_id and str(mt5_account_id).lower() not in ("all", "", "none"):
-        # Khi chọn 1 tài khoản con Quỹ / Sàn cụ thể (The5ers, FTMO, Binance, Ghi tay...):
+        # Khi chọn 1 tài khoản con Quỹ / Sàn cụ thể (The5ers, FTMO, Binance...):
         try:
             acc = db.get_mt5_account(account_id=int(mt5_account_id), user_id=user_id)
             if acc:
+                acc_balance = float(acc.get("balance") or 0.0)
                 init_cap = float(acc.get("initial_capital") or 0.0)
-                if init_cap <= 0:
-                    init_cap = float(acc.get("balance") or 0.0)
-                initial_capital = max(0.0, init_cap)
+                closed_pnl = sum(float(t.get("pnl") or 0.0) for t in trades if t.get("status") == "Closed")
+
+                # Tự động nhận diện vốn ban đầu chuẩn xác nếu chưa từng sửa tay hoặc bị gán nhầm bằng balance hiện tại
+                if init_cap <= 0 or (abs(init_cap - acc_balance) < 0.01 and closed_pnl != 0):
+                    inferred = round(acc_balance - closed_pnl, 2)
+                    initial_capital = inferred if inferred > 0 else acc_balance
+                else:
+                    initial_capital = init_cap
+
+                stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
+                
+                # Với tài khoản MT5 có số dư thực: Vốn hiện tại luôn ưu tiên chuẩn xác 100% theo Balance từ MT5
+                if acc_balance > 0:
+                    stats["current_capital"] = round(acc_balance, 2)
+                    if initial_capital > 0:
+                        stats["capital_growth_percent"] = round(((acc_balance - initial_capital) / initial_capital) * 100, 2)
             else:
                 initial_capital = db.get_user_capital(user_id=user_id)
+                stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
         except Exception:
             initial_capital = db.get_user_capital(user_id=user_id)
+            stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
     else:
         # Khi chọn "Tất Cả Tài Khoản" (Tổng hợp toàn bộ danh mục):
-        # TỔNG TOÀN BỘ VỐN BAN ĐẦU CỦA CÁC TÀI KHOẢN CON
         if all_sub_accounts:
-            total_initial = sum(
-                float(acc.get("initial_capital") or acc.get("balance") or 0.0)
-                for acc in all_sub_accounts
-            )
-            initial_capital = round(total_initial, 2) if total_initial > 0 else db.get_user_capital(user_id=user_id)
-        else:
-            # Nếu chưa tạo tài khoản con nào: dùng vốn mặc định
-            initial_capital = db.get_user_capital(user_id=user_id)
+            total_initial = 0.0
+            total_current = 0.0
+            for a in all_sub_accounts:
+                a_bal = float(a.get("balance") or 0.0)
+                a_init = float(a.get("initial_capital") or 0.0)
+                a_trades = db.get_all_trades(user_id=user_id, order_desc=False, mt5_account_id=a["id"])
+                a_pnl = sum(float(t.get("pnl") or 0.0) for t in a_trades if t.get("status") == "Closed")
+                
+                if a_init <= 0 or (abs(a_init - a_bal) < 0.01 and a_pnl != 0):
+                    inferred_a = round(a_bal - a_pnl, 2)
+                    sub_init = inferred_a if inferred_a > 0 else a_bal
+                else:
+                    sub_init = a_init
+                
+                total_initial += sub_init
+                total_current += (a_bal if a_bal > 0 else (sub_init + a_pnl))
 
-    stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
+            initial_capital = round(total_initial, 2) if total_initial > 0 else db.get_user_capital(user_id=user_id)
+            stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
+            if total_current > 0:
+                stats["current_capital"] = round(total_current, 2)
+                if initial_capital > 0:
+                    stats["capital_growth_percent"] = round(((total_current - initial_capital) / initial_capital) * 100, 2)
+        else:
+            initial_capital = db.get_user_capital(user_id=user_id)
+            stats = calculate_portfolio_statistics(trades, initial_capital=initial_capital)
+
     stats["has_sub_accounts"] = len(all_sub_accounts) > 0
     stats["sub_accounts_count"] = len(all_sub_accounts)
     stats["current_view_account"] = mt5_account_id or "all"
