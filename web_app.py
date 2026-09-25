@@ -704,18 +704,16 @@ def mt5_webhook():
     stop_loss = float(payload["stop_loss"]) if payload.get("stop_loss") not in (None, "", 0, 0.0) else None
     take_profit = float(payload["take_profit"]) if payload.get("take_profit") not in (None, "", 0, 0.0) else None
 
-    # Tính Planned R:R và Realized R:R nếu có Stop Loss
-    planned_rr = 0.0
-    realized_rr = 0.0
-    if stop_loss and stop_loss > 0 and entry_price > 0:
-        risk_dist = abs(entry_price - stop_loss)
-        if risk_dist > 0:
-            if take_profit and take_profit > 0:
-                reward_dist = abs(take_profit - entry_price)
-                planned_rr = round(reward_dist / risk_dist, 2)
-            if exit_price > 0:
-                realized_diff = (exit_price - entry_price) if trade_type == "Long" else (entry_price - exit_price)
-                realized_rr = round(realized_diff / risk_dist, 2)
+    # Tính Planned R:R và Realized R:R bằng hàm chuẩn calculate_trade_metrics
+    trade_metrics = calculate_trade_metrics(
+        trade_type=trade_type,
+        entry_price=entry_price,
+        exit_price=exit_price,
+        stop_loss=stop_loss,
+        take_profit=take_profit
+    )
+    planned_rr = trade_metrics["planned_rr"]
+    realized_rr = trade_metrics["realized_rr"]
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     close_time = payload.get("close_time") or payload.get("time") or now_str
@@ -725,10 +723,36 @@ def mt5_webhook():
     with db.get_connection() as conn:
         cursor = conn.cursor()
         if ticket:
-            cursor.execute("SELECT id FROM trades WHERE user_id = ? AND notes LIKE ? LIMIT 1", (user_id, f"%#{ticket}%"))
+            cursor.execute("SELECT id, stop_loss, take_profit, planned_rr, realized_rr FROM trades WHERE user_id = ? AND notes LIKE ? LIMIT 1", (user_id, f"%#{ticket}%"))
             existing = cursor.fetchone()
             if existing:
-                existing_id = existing["id"] if isinstance(existing, dict) else existing[0]
+                existing_dict = dict(existing) if hasattr(existing, "keys") else {
+                    "id": existing[0],
+                    "stop_loss": existing[1],
+                    "take_profit": existing[2],
+                    "planned_rr": existing[3],
+                    "realized_rr": existing[4]
+                }
+                existing_id = existing_dict["id"]
+                
+                # Bảo toàn SL / TP nếu trong database đã có mà payload lần này là None
+                if stop_loss is None and existing_dict.get("stop_loss") is not None:
+                    stop_loss = float(existing_dict["stop_loss"])
+                if take_profit is None and existing_dict.get("take_profit") is not None:
+                    take_profit = float(existing_dict["take_profit"])
+
+                # Cập nhật lại planned_rr và realized_rr nếu SL/TP được bảo toàn
+                if stop_loss is not None:
+                    re_metrics = calculate_trade_metrics(
+                        trade_type=trade_type,
+                        entry_price=entry_price,
+                        exit_price=exit_price,
+                        stop_loss=stop_loss,
+                        take_profit=take_profit
+                    )
+                    planned_rr = re_metrics["planned_rr"]
+                    realized_rr = re_metrics["realized_rr"]
+
                 cursor.execute("""
                     UPDATE trades SET
                         symbol = ?,

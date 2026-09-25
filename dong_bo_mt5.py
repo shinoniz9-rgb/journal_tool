@@ -47,13 +47,15 @@ def verify_web_link(login_num: int, server_name: str):
         res = requests.post(CHECK_ACCOUNT_URL, json={
             "login": str(login_num),
             "server": server_name
-        }, timeout=12)
+        }, timeout=45)
         if res.status_code == 200:
             return res.json()
         elif res.status_code == 404:
             return {"status": "not_found", "message": res.json().get("message", "Chưa liên kết")}
         else:
             return {"status": "error", "message": f"Mã phản hồi HTTP {res.status_code}"}
+    except requests.exceptions.Timeout:
+        return {"status": "error", "message": "Quá thời gian kết nối (Máy chủ đang khởi động lại từ chế độ ngủ, vui lòng thử chạy lại sau 15-30 giây)"}
     except Exception as ex:
         return {"status": "error", "message": f"Lỗi kết nối máy chủ: {ex}"}
 
@@ -93,6 +95,7 @@ def sync_account_trades(acc_info, web_info, days_back=90):
             if p_id:
                 order_by_pos.setdefault(p_id, []).append(o)
 
+    session = requests.Session()
     for deal in closed_deals:
         pos_id = getattr(deal, "position_id", None)
         pos_deals = [d for d in deals if d.position_id == pos_id] if pos_id else [deal]
@@ -154,7 +157,7 @@ def sync_account_trades(acc_info, web_info, days_back=90):
         }
 
         try:
-            res = requests.post(WEBHOOK_URL, json=payload, timeout=12)
+            res = session.post(WEBHOOK_URL, json=payload, timeout=30)
             pnl_str = f"+${net_profit:.2f}" if net_profit >= 0 else f"-${abs(net_profit):.2f}"
             fee_info = f" (Phí: -${total_fees:.2f})" if total_fees > 0 else ""
             sl_info = f" | SL: {sl_val:g}" if sl_val > 0 else ""

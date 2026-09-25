@@ -347,9 +347,16 @@ body {
 
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
 }
 
 .kpi-card {
@@ -2407,9 +2414,11 @@ html, body {
     }
 
     .kpi-val-split {
-        font-size: 13.5px !important;
+        font-size: 13px !important;
         white-space: nowrap !important;
-        letter-spacing: -0.3px !important;
+        letter-spacing: -0.4px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     .kpi-subtext {
