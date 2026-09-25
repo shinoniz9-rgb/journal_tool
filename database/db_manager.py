@@ -193,12 +193,26 @@ class DatabaseManager:
                     metaapi_account_id VARCHAR(100),
                     balance DOUBLE PRECISION DEFAULT 0.0,
                     equity DOUBLE PRECISION DEFAULT 0.0,
+                    initial_capital DOUBLE PRECISION DEFAULT 0.0,
                     currency VARCHAR(20) DEFAULT 'USD',
                     is_active INTEGER DEFAULT 1,
                     created_at VARCHAR(50) NOT NULL,
                     updated_at VARCHAR(50) NOT NULL
                 );
                 """)
+
+                # Kiểm tra cột initial_capital trong mt5_accounts (PostgreSQL)
+                try:
+                    cursor.execute("""
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'mt5_accounts';
+                    """)
+                    mt5_cols = [c.get("column_name") if isinstance(c, dict) else c[0] for c in cursor.fetchall()]
+                    if "initial_capital" not in mt5_cols:
+                        cursor.execute("ALTER TABLE mt5_accounts ADD COLUMN initial_capital DOUBLE PRECISION DEFAULT 0.0;")
+                        cursor.execute("UPDATE mt5_accounts SET initial_capital = balance WHERE initial_capital IS NULL OR initial_capital = 0;")
+                except Exception as e:
+                    print(f"[!] Migration mt5_accounts initial_capital failed: {e}")
 
                 # 3. Bảng Trades (PostgreSQL)
                 cursor.execute("""
@@ -294,6 +308,7 @@ class DatabaseManager:
                     metaapi_account_id TEXT,
                     balance REAL DEFAULT 0.0,
                     equity REAL DEFAULT 0.0,
+                    initial_capital REAL DEFAULT 0.0,
                     currency TEXT DEFAULT 'USD',
                     is_active INTEGER DEFAULT 1,
                     created_at TEXT NOT NULL,
@@ -301,6 +316,15 @@ class DatabaseManager:
                     FOREIGN KEY(user_id) REFERENCES users(id)
                 );
                 """)
+
+                cursor.execute("PRAGMA table_info(mt5_accounts)")
+                mt5_columns = [col[1] for col in cursor.fetchall()]
+                if "initial_capital" not in mt5_columns:
+                    try:
+                        cursor.execute("ALTER TABLE mt5_accounts ADD COLUMN initial_capital REAL DEFAULT 0.0;")
+                        cursor.execute("UPDATE mt5_accounts SET initial_capital = balance WHERE initial_capital IS NULL OR initial_capital = 0;")
+                    except Exception:
+                        pass
 
                 cursor.execute("PRAGMA table_info(trades)")
                 trade_columns = [col[1] for col in cursor.fetchall()]
@@ -573,7 +597,9 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             order = "DESC" if order_desc else "ASC"
-            if mt5_account_id is not None and str(mt5_account_id).lower() not in ("all", "", "none"):
+            if str(mt5_account_id).lower() == "manual":
+                cursor.execute(f"SELECT * FROM trades WHERE user_id = ? AND (mt5_account_id IS NULL OR mt5_account_id = 0) ORDER BY id {order}", (user_id,))
+            elif mt5_account_id is not None and str(mt5_account_id).lower() not in ("all", "", "none"):
                 try:
                     acc_id = int(mt5_account_id)
                     cursor.execute(f"SELECT * FROM trades WHERE user_id = ? AND mt5_account_id = ? ORDER BY id {order}", (user_id, acc_id))
@@ -597,7 +623,9 @@ class DatabaseManager:
         query = "SELECT * FROM trades WHERE user_id = ?"
         params = [user_id]
 
-        if mt5_account_id is not None and str(mt5_account_id).lower() not in ("all", "", "none"):
+        if str(mt5_account_id).lower() == "manual":
+            query += " AND (mt5_account_id IS NULL OR mt5_account_id = 0)"
+        elif mt5_account_id is not None and str(mt5_account_id).lower() not in ("all", "", "none"):
             try:
                 acc_id = int(mt5_account_id)
                 query += " AND mt5_account_id = ?"
@@ -650,16 +678,17 @@ class DatabaseManager:
     # ==========================================
     # CÁC HÀM QUẢN LÝ TÀI KHOẢN MT5 (MULTI-ACCOUNT)
     # ==========================================
-    def add_mt5_account(self, user_id: int, account_name: str, server: str, login: str, password: str, balance: float = 0.0, metaapi_account_id: Optional[str] = None) -> int:
+    def add_mt5_account(self, user_id: int, account_name: str, server: str, login: str, password: str, balance: float = 0.0, metaapi_account_id: Optional[str] = None, initial_capital: Optional[float] = None) -> int:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        init_cap = float(initial_capital if initial_capital is not None else balance)
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
             INSERT INTO mt5_accounts (
                 user_id, account_name, server, login, password,
-                metaapi_account_id, balance, equity, currency, is_active,
+                metaapi_account_id, balance, equity, initial_capital, currency, is_active,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'USD', 1, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'USD', 1, ?, ?)
             """, (
                 user_id,
                 account_name.strip() if account_name else f"MT5 #{login}",
@@ -669,11 +698,23 @@ class DatabaseManager:
                 metaapi_account_id,
                 float(balance or 0.0),
                 float(balance or 0.0),
+                init_cap,
                 now,
                 now
             ))
             conn.commit()
             return cursor.lastrowid
+
+    def update_mt5_initial_capital(self, account_id: int, initial_capital: float, user_id: Optional[int] = None) -> bool:
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            if user_id is not None:
+                cursor.execute("UPDATE mt5_accounts SET initial_capital = ?, updated_at = ? WHERE id = ? AND user_id = ?", (float(initial_capital), now, account_id, user_id))
+            else:
+                cursor.execute("UPDATE mt5_accounts SET initial_capital = ?, updated_at = ? WHERE id = ?", (float(initial_capital), now, account_id))
+            conn.commit()
+            return cursor.rowcount > 0
 
     def get_mt5_accounts(self, user_id: int) -> List[Dict[str, Any]]:
         with self.get_connection() as conn:

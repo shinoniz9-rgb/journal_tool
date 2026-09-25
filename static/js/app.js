@@ -617,10 +617,54 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-avg-rr").textContent = `1 : ${avgRrVal.toFixed(2)}`;
         document.getElementById("kpi-max-wins").textContent = `${stats.max_consecutive_wins || 0}W`;
         document.getElementById("kpi-max-losses").textContent = `${stats.max_consecutive_losses || 0}L`;
+        // 3. Xử lý nút bút chì và giao diện sửa vốn ban đầu:
+        // - Khi ở "Tất Cả Tài Khoản": ẨN cây bút chì đi (do tự động tính tổng từ các tài khoản con)
+        // - Khi ở "Tài Khoản Ghi Tay" (hoặc chưa có MT5): HIỂN THỊ cây bút chì để sửa vốn ghi tay
+        // - Khi ở tài khoản con MT5 cụ thể: sửa vốn ban đầu của tài khoản con đó
+        const isAllAccounts = state.currentMt5AccountId === "all";
+        const isManualAccount = state.currentMt5AccountId === "manual";
+        const hasMt5 = (state.mt5Accounts && state.mt5Accounts.length > 0) || (stats && stats.has_mt5_accounts);
+
+        if (elements.btnEditCapital && elements.btnQuickEditCapital) {
+            if (isAllAccounts && hasMt5) {
+                // XÓA / ẨN cây bút chì ở Tất Cả Tài Khoản
+                elements.btnEditCapital.style.display = "none";
+                const totalAccs = (state.mt5Accounts ? state.mt5Accounts.length : 0) + 1;
+                elements.btnQuickEditCapital.textContent = `📊 Tổng tự động từ ${totalAccs} tài khoản con`;
+                elements.btnQuickEditCapital.style.cursor = "default";
+                elements.btnQuickEditCapital.style.color = "var(--text-muted)";
+                elements.btnQuickEditCapital.style.opacity = "0.75";
+                elements.btnQuickEditCapital.title = "Vốn này là tổng hợp tự động từ các tài khoản con, không thể sửa trực tiếp.";
+            } else if (isManualAccount || !hasMt5) {
+                // HIỂN THỊ cây bút chì ở Tài Khoản Ghi Tay
+                elements.btnEditCapital.style.display = "inline-flex";
+                elements.btnQuickEditCapital.textContent = "✏️ Nhấp để sửa vốn ghi tay";
+                elements.btnQuickEditCapital.style.cursor = "pointer";
+                elements.btnQuickEditCapital.style.color = "var(--accent-cyan)";
+                elements.btnQuickEditCapital.style.opacity = "1";
+                elements.btnQuickEditCapital.title = "Nhấp để đổi số vốn ban đầu của tài khoản ghi tay";
+            } else {
+                // Xem tài khoản con MT5 cụ thể
+                elements.btnEditCapital.style.display = "inline-flex";
+                elements.btnQuickEditCapital.textContent = "✏️ Sửa vốn ban đầu tài khoản này";
+                elements.btnQuickEditCapital.style.cursor = "pointer";
+                elements.btnQuickEditCapital.style.color = "var(--accent-cyan)";
+                elements.btnQuickEditCapital.style.opacity = "1";
+                elements.btnQuickEditCapital.title = "Nhấp để đổi số vốn ban đầu của tài khoản này";
+            }
+        }
     }
 
     function showCapitalEditMode() {
         if (!elements.capitalDisplayView || !elements.capitalEditView) return;
+        const isAllAccounts = state.currentMt5AccountId === "all";
+        const hasMt5 = (state.mt5Accounts && state.mt5Accounts.length > 0) || (state.stats && state.stats.has_mt5_accounts);
+
+        if (isAllAccounts && hasMt5) {
+            showToast("Vốn ở mục 'Tất Cả Tài Khoản' là tổng hợp tự động từ các tài khoản con. Vui lòng chuyển sang 'Tài Khoản Ghi Tay' để sửa vốn!", "info");
+            return;
+        }
+
         const currentVal = state.stats && state.stats.initial_capital ? state.stats.initial_capital : 1000;
         elements.inputInitialCapital.value = currentVal;
         elements.capitalDisplayView.style.display = "none";
@@ -644,15 +688,30 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             elements.btnSaveCapital.disabled = true;
             elements.btnSaveCapital.textContent = "...";
-            const res = await authFetch("/api/user/capital", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ initial_capital: newCapital })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Không thể lưu số vốn");
 
-            showToast("Đã cập nhật số vốn ban đầu thành công!", "success");
+            if (state.currentMt5AccountId && state.currentMt5AccountId !== "all" && state.currentMt5AccountId !== "manual") {
+                // Lưu vốn cho tài khoản MT5 / Sàn cụ thể
+                const res = await authFetch(`/api/mt5/accounts/${state.currentMt5AccountId}/initial-capital`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ initial_capital: newCapital })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Không thể lưu số vốn");
+                showToast("Đã cập nhật số vốn ban đầu của tài khoản này!", "success");
+                await loadMt5Accounts();
+            } else {
+                // Lưu vốn cho Tài Khoản Ghi Tay
+                const res = await authFetch("/api/user/capital", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ initial_capital: newCapital })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Không thể lưu số vốn");
+                showToast("Đã cập nhật số vốn ban đầu của tài khoản ghi tay!", "success");
+            }
+
             hideCapitalEditMode();
             await loadStats();
         } catch (err) {
@@ -1536,7 +1595,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         listEl.innerHTML = "";
 
-        // Mục "Tất cả tài khoản"
+        // 1. Mục "Tất cả tài khoản" (Tổng hợp toàn bộ danh mục)
         const allItem = document.createElement("button");
         allItem.type = "button";
         allItem.className = `dropdown-account-item ${state.currentMt5AccountId === "all" ? "selected" : ""}`;
@@ -1550,36 +1609,66 @@ document.addEventListener("DOMContentLoaded", () => {
         allItem.addEventListener("click", () => switchMt5Account("all"));
         listEl.appendChild(allItem);
 
+        // 2. Mục "Tài Khoản Ghi Tay" (Chỉ các lệnh thủ công/chung)
+        const manualCapital = (state.stats && state.stats.manual_initial_capital !== undefined) 
+            ? state.stats.manual_initial_capital 
+            : 1000;
+        const manualItem = document.createElement("button");
+        manualItem.type = "button";
+        manualItem.className = `dropdown-account-item ${state.currentMt5AccountId === "manual" ? "selected" : ""}`;
+        manualItem.innerHTML = `
+            <div class="dropdown-account-info">
+                <span class="dropdown-account-title">✍️ Tài Khoản Ghi Tay</span>
+                <span class="dropdown-account-sub">Lệnh ghi chép thủ công</span>
+            </div>
+            <div style="text-align: right;">
+                <span class="dropdown-account-balance">$${Number(manualCapital).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2})}</span>
+                ${state.currentMt5AccountId === "manual" ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-left: 6px;">✓</span>' : ''}
+            </div>
+        `;
+        manualItem.addEventListener("click", () => switchMt5Account("manual"));
+        listEl.appendChild(manualItem);
+
         let activeAccount = null;
 
-        // Các tài khoản cụ thể
-        accounts.forEach(acc => {
-            const isSelected = String(state.currentMt5AccountId) === String(acc.id);
-            if (isSelected) activeAccount = acc;
+        // 3. Header phân cách cho các tài khoản MT5 / Sàn liên kết nếu có
+        if (accounts && accounts.length > 0) {
+            const sep = document.createElement("div");
+            sep.style.cssText = "padding: 8px 12px 4px 12px; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;";
+            sep.textContent = "Tài khoản MT5 & Sàn liên kết";
+            listEl.appendChild(sep);
 
-            const item = document.createElement("button");
-            item.type = "button";
-            item.className = `dropdown-account-item ${isSelected ? "selected" : ""}`;
-            item.innerHTML = `
-                <div class="dropdown-account-info">
-                    <span class="dropdown-account-title">📈 ${escapeHtml(acc.account_name)}</span>
-                    <span class="dropdown-account-sub">${escapeHtml(acc.server)} #${escapeHtml(acc.login)}</span>
-                </div>
-                <div style="text-align: right;">
-                    <span class="dropdown-account-balance">$${Number(acc.balance || 0).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2})}</span>
-                    ${isSelected ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-left: 6px;">✓</span>' : ''}
-                </div>
-            `;
-            item.addEventListener("click", () => switchMt5Account(acc.id));
-            listEl.appendChild(item);
-        });
+            // Các tài khoản cụ thể
+            accounts.forEach(acc => {
+                const isSelected = String(state.currentMt5AccountId) === String(acc.id);
+                if (isSelected) activeAccount = acc;
+
+                const item = document.createElement("button");
+                item.type = "button";
+                item.className = `dropdown-account-item ${isSelected ? "selected" : ""}`;
+                item.innerHTML = `
+                    <div class="dropdown-account-info">
+                        <span class="dropdown-account-title">📈 ${escapeHtml(acc.account_name)}</span>
+                        <span class="dropdown-account-sub">${escapeHtml(acc.server)} #${escapeHtml(acc.login)}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="dropdown-account-balance">$${Number(acc.balance || 0).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2})}</span>
+                        ${isSelected ? '<span style="color:var(--accent-cyan); font-weight:bold; margin-left: 6px;">✓</span>' : ''}
+                    </div>
+                `;
+                item.addEventListener("click", () => switchMt5Account(acc.id));
+                listEl.appendChild(item);
+            });
+        }
 
         // Cập nhật nhãn trên thanh Header
         if (labelEl) {
-            if (activeAccount) {
+            if (state.currentMt5AccountId === "manual") {
+                labelEl.textContent = "✍️ Tài Khoản Ghi Tay";
+            } else if (activeAccount) {
                 labelEl.textContent = `${activeAccount.account_name} ($${Number(activeAccount.balance || 0).toLocaleString("en-US", {maximumFractionDigits: 0})})`;
             } else {
-                labelEl.textContent = "Tất Cả Tài Khoản";
+                labelEl.textContent = "📊 Tất Cả Tài Khoản";
             }
         }
 
@@ -1587,7 +1676,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const formAccSelect = document.getElementById("form-account-id");
         if (formAccSelect) {
             const currentSelected = formAccSelect.value;
-            formAccSelect.innerHTML = '<option value="">-- Tài Khoản Chung (Mặc định) --</option>';
+            formAccSelect.innerHTML = '<option value="">✍️ Tài Khoản Ghi Tay (Mặc định)</option>';
             accounts.forEach(acc => {
                 const opt = document.createElement("option");
                 opt.value = acc.id;
@@ -1616,13 +1705,16 @@ document.addEventListener("DOMContentLoaded", () => {
         accounts.forEach(acc => {
             const card = document.createElement("div");
             card.className = "mt5-card-item";
+            const initialCapVal = acc.initial_capital || acc.balance || 0;
             card.innerHTML = `
                 <div class="mt5-card-details">
                     <div class="mt5-card-title">${escapeHtml(acc.account_name)}</div>
-                    <div class="mt5-card-meta">${escapeHtml(acc.server)} • ID: <code>${escapeHtml(acc.login)}</code></div>
+                    <div class="mt5-card-meta">
+                        ${escapeHtml(acc.server)} • ID: <code>${escapeHtml(acc.login)}</code> • Vốn đầu: <strong style="color:var(--accent-cyan);">$${Number(initialCapVal).toLocaleString("en-US", {minimumFractionDigits: 0, maximumFractionDigits: 2})}</strong>
+                    </div>
                 </div>
                 <div class="mt5-card-right">
-                    <span class="mt5-card-balance">$${Number(acc.balance || 0).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span class="mt5-card-balance" title="Số dư hiện tại">$${Number(acc.balance || 0).toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                     <button type="button" class="btn-delete-mt5" title="Xóa kết nối tài khoản này" data-id="${acc.id}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
@@ -1666,8 +1758,13 @@ document.addEventListener("DOMContentLoaded", () => {
         renderMt5AccountDropdown(state.mt5Accounts);
 
         // Thông báo chuyển đổi
-        const targetAcc = state.mt5Accounts.find(a => String(a.id) === String(accountId));
-        const accName = targetAcc ? targetAcc.account_name : "Tất Cả Tài Khoản";
+        let accName = "📊 Tất Cả Tài Khoản";
+        if (accountId === "manual") {
+            accName = "✍️ Tài Khoản Ghi Tay";
+        } else {
+            const targetAcc = state.mt5Accounts.find(a => String(a.id) === String(accountId));
+            if (targetAcc) accName = targetAcc.account_name;
+        }
         showToast(`Đã chuyển sang: ${accName}`, "success");
 
         // Tải lại toàn bộ dữ liệu chỉ của tài khoản này
@@ -2069,7 +2166,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const res = await authFetch("/api/mt5/accounts", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ account_name: name, server, login, password, balance })
+                        body: JSON.stringify({ account_name: name, server, login, password, balance, initial_capital: balance })
                     });
                     let data = {};
                     try {
