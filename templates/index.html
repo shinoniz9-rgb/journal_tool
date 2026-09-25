@@ -117,9 +117,6 @@
                     <div class="kpi-card card-glow" id="kpi-capital-card">
                         <div class="kpi-header">
                             <span class="kpi-label">Vốn Ban Đầu</span>
-                            <button type="button" class="btn-icon-tiny" id="btn-edit-capital" title="Nhấp để thay đổi số vốn ban đầu">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                            </button>
                         </div>
                         <div id="capital-display-view">
                             <div class="kpi-value text-accent" id="kpi-initial-capital">$1,000.00</div>
@@ -464,17 +461,17 @@
 
                 <div class="dropdown-divider" style="margin: 16px 0;"></div>
 
-                <!-- Form thêm tài khoản mới (Quỹ MT5 hoặc Sàn ghi tay/Binance...) -->
+                <!-- Form thêm tài khoản mới (Quỹ MT5 hoặc Sàn Binance, OKX...) -->
                 <form id="form-add-mt5" autocomplete="off">
                     <h3 style="font-size: 13.5px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
-                        <span>➕ Thêm Tài Khoản Mới (Quỹ MT5 / Sàn Binance, OKX / Ghi Tay...)</span>
+                        <span>➕ Thêm Tài Khoản Mới (Quỹ MT5 / Sàn Binance, OKX...)</span>
                     </h3>
 
                     <!-- HÀNG 1: TÊN GỢI NHỚ -->
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="mt5-account-name" class="form-label required">Tên Gợi Nhớ (Ví dụ: The5ers, FTMO, Binance Futures, OKX Ghi Tay...)</label>
-                            <input type="text" id="mt5-account-name" class="form-control" placeholder="vd: The5ers, FTMO, Binance hoặc OKX Ghi Tay" required>
+                            <label for="mt5-account-name" class="form-label required">Tên Gợi Nhớ (Ví dụ: The5ers, FTMO, Binance Futures, OKX...)</label>
+                            <input type="text" id="mt5-account-name" class="form-control" placeholder="vd: The5ers, FTMO, Binance hoặc OKX" required>
                         </div>
                     </div>
 
@@ -494,7 +491,7 @@
                     <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="mt5-password" class="form-label">Mật Khẩu Investor</label>
-                            <input type="password" id="mt5-password" class="form-control" placeholder="Chỉ cần nếu đồng bộ MT5, bỏ qua nếu ghi tay/sàn">
+                            <input type="password" id="mt5-password" class="form-control" placeholder="Chỉ cần nếu đồng bộ MT5, bỏ qua nếu tạo sàn thông thường">
                         </div>
                         <div class="form-group">
                             <label for="mt5-balance" class="form-label required">Số Vốn Ban Đầu ($)</label>
@@ -505,7 +502,7 @@
                     <!-- HÀNG 4: HƯỚNG DẪN / GỢI Ý & NÚT LƯU -->
                     <div class="form-row" style="margin-bottom: 0;">
                         <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45; padding: 10px 14px; background: rgba(56, 189, 248, 0.05); border: 1px dashed rgba(56, 189, 248, 0.22); border-radius: var(--radius-sm); margin-bottom: 16px;">
-                            💡 <em>Dùng để tạo tài khoản Quỹ (FTMO, The5ers...) hoặc tài khoản Sàn (Binance, OKX, Bybit...). Lệnh của tài khoản có thể đồng bộ tự động qua MT5 hoặc ghi chép thủ công tùy bạn chọn.</em>
+                            💡 <em>Dùng để tạo tài khoản Quỹ (FTMO, The5ers...) hoặc tài khoản Sàn (Binance, OKX, Bybit...). Lệnh của tài khoản có thể đồng bộ tự động qua MT5 hoặc nhập qua web tùy bạn chọn.</em>
                         </div>
 
                         <div class="auth-alert" id="mt5-form-alert" style="display: none; margin-bottom: 12px;"></div>
@@ -793,6 +790,6 @@
 
     <div class="toast-container" id="toast-container"></div>
 
-    <script src="/static/js/app.js?v=20260925_v36"></script>
+    <script src="/static/js/app.js?v=20260925_v37"></script>
 </body>
 </html>

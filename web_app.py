@@ -542,7 +542,7 @@ def add_mt5_account():
     initial_capital = float(data.get("initial_capital", balance) or balance)
 
     if not account_name:
-        return jsonify({"error": "Vui lòng nhập Tên Gợi Nhớ cho tài khoản (ví dụ: The5ers, FTMO, Binance, Ghi tay...)"}), 400
+        return jsonify({"error": "Vui lòng nhập Tên Gợi Nhớ cho tài khoản (ví dụ: The5ers, FTMO, Binance, OKX...)"}), 400
 
     # Nếu người dùng nhập mã login cụ thể, kiểm tra xem tài khoản này đã có sẵn của user chưa
     if login_raw:

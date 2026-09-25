@@ -110,7 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
         kpiInitialCapital: document.getElementById("kpi-initial-capital"),
         kpiCurrentCapital: document.getElementById("kpi-current-capital"),
         kpiCapitalGrowth: document.getElementById("kpi-capital-growth"),
-        btnEditCapital: document.getElementById("btn-edit-capital"),
         btnQuickEditCapital: document.getElementById("btn-quick-edit-capital"),
         capitalDisplayView: document.getElementById("capital-display-view"),
         capitalEditView: document.getElementById("capital-edit-view"),
@@ -617,16 +616,14 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-avg-rr").textContent = `1 : ${avgRrVal.toFixed(2)}`;
         document.getElementById("kpi-max-wins").textContent = `${stats.max_consecutive_wins || 0}W`;
         document.getElementById("kpi-max-losses").textContent = `${stats.max_consecutive_losses || 0}L`;
-        // 3. Xử lý nút bút chì và giao diện sửa vốn ban đầu:
-        // - Khi ở "Tất Cả Tài Khoản": ẨN cây bút chì đi (tự động cộng tổng từ các tài khoản con)
-        // - Khi ở tài khoản con Quỹ / Sàn cụ thể: HIỂN THỊ cây bút chì để sửa vốn ban đầu của tài khoản đó
+        // 3. Xử lý giao diện sửa vốn ban đầu:
+        // - Khi ở "Tất Cả Tài Khoản": Tự động cộng tổng từ các tài khoản con, không thể sửa trực tiếp
+        // - Khi ở tài khoản con Quỹ / Sàn cụ thể: Nhấp vào dòng phụ để sửa vốn ban đầu của tài khoản đó
         const isAllAccounts = state.currentMt5AccountId === "all";
         const totalAccs = state.mt5Accounts ? state.mt5Accounts.length : 0;
 
-        if (elements.btnEditCapital && elements.btnQuickEditCapital) {
+        if (elements.btnQuickEditCapital) {
             if (isAllAccounts) {
-                // XÓA / ẨN cây bút chì ở Tất Cả Tài Khoản
-                elements.btnEditCapital.style.display = "none";
                 elements.btnQuickEditCapital.textContent = totalAccs > 0 
                     ? `📊 Tổng tự động từ ${totalAccs} tài khoản con` 
                     : `📊 Tổng hợp toàn bộ danh mục`;
@@ -635,8 +632,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 elements.btnQuickEditCapital.style.opacity = "0.75";
                 elements.btnQuickEditCapital.title = "Vốn này là tổng hợp tự động từ các tài khoản con, không thể sửa trực tiếp.";
             } else {
-                // Đang xem 1 tài khoản con Quỹ / Sàn cụ thể: HIỂN THỊ cây bút chì
-                elements.btnEditCapital.style.display = "inline-flex";
                 elements.btnQuickEditCapital.textContent = "✏️ Nhấp để sửa vốn ban đầu";
                 elements.btnQuickEditCapital.style.cursor = "pointer";
                 elements.btnQuickEditCapital.style.color = "var(--accent-cyan)";
@@ -2002,11 +1997,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         // Lắng nghe sự kiện chỉnh sửa số vốn ban đầu (Dashboard Capital)
-        if (elements.btnEditCapital) {
-            elements.btnEditCapital.addEventListener("click", showCapitalEditMode);
-        }
         if (elements.btnQuickEditCapital) {
-            elements.btnQuickEditCapital.addEventListener("click", showCapitalEditMode);
+            elements.btnQuickEditCapital.addEventListener("click", () => {
+                if (state.currentMt5AccountId === "all") return;
+                showCapitalEditMode();
+            });
         }
         if (elements.btnCancelCapital) {
             elements.btnCancelCapital.addEventListener("click", hideCapitalEditMode);
