@@ -84,6 +84,15 @@ def sync_account_trades(acc_info, web_info, days_back=90):
     closed_deals = [d for d in deals if d.entry in (mt5.DEAL_ENTRY_OUT, mt5.DEAL_ENTRY_INOUT) and d.symbol]
     print(f"[*] Tìm thấy {len(closed_deals)} lệnh đã đóng, đang đồng bộ vào tài khoản Web: '{username}'...", flush=True)
 
+    # Lấy lịch sử Orders để trích xuất Stop Loss và Take Profit của vị thế
+    orders = mt5.history_orders_get(from_date, to_date)
+    order_by_pos = {}
+    if orders:
+        for o in orders:
+            p_id = getattr(o, "position_id", None)
+            if p_id:
+                order_by_pos.setdefault(p_id, []).append(o)
+
     for deal in closed_deals:
         pos_id = getattr(deal, "position_id", None)
         pos_deals = [d for d in deals if d.position_id == pos_id] if pos_id else [deal]
@@ -101,6 +110,16 @@ def sync_account_trades(acc_info, web_info, days_back=90):
             trade_type = "Long" if deal.type == mt5.DEAL_TYPE_SELL else "Short"
             entry_price = exit_price
             open_time = close_time
+
+        # Trích xuất SL và TP từ danh sách orders thuộc vị thế này
+        pos_orders = order_by_pos.get(pos_id, [])
+        sl_val = 0.0
+        tp_val = 0.0
+        for o in pos_orders:
+            if getattr(o, "sl", 0.0) and float(o.sl) > 0:
+                sl_val = float(o.sl)
+            if getattr(o, "tp", 0.0) and float(o.tp) > 0:
+                tp_val = float(o.tp)
 
         # Tổng hợp toàn bộ Phí hoa hồng (Commission), Phí qua đêm (Swap) và Phí sàn (Fee) của toàn bộ vị thế
         gross_profit = float(deal.profit)
@@ -120,6 +139,8 @@ def sync_account_trades(acc_info, web_info, days_back=90):
             "symbol": deal.symbol,
             "entry_price": entry_price,
             "exit_price": exit_price,
+            "stop_loss": float(sl_val) if sl_val > 0 else None,
+            "take_profit": float(tp_val) if tp_val > 0 else None,
             "profit": float(gross_profit),
             "commission": float(total_comm),
             "swap": float(total_swap),
@@ -136,13 +157,14 @@ def sync_account_trades(acc_info, web_info, days_back=90):
             res = requests.post(WEBHOOK_URL, json=payload, timeout=12)
             pnl_str = f"+${net_profit:.2f}" if net_profit >= 0 else f"-${abs(net_profit):.2f}"
             fee_info = f" (Phí: -${total_fees:.2f})" if total_fees > 0 else ""
+            sl_info = f" | SL: {sl_val:g}" if sl_val > 0 else ""
             if res.status_code == 201:
-                print(f"    [+] THÊM MỚI -> [{username}]: {deal.symbol} {trade_type} | Net: {pnl_str}{fee_info} | Vé #{deal.ticket}", flush=True)
+                print(f"    [+] THÊM MỚI -> [{username}]: {deal.symbol} {trade_type} | Net: {pnl_str}{fee_info}{sl_info} | Vé #{deal.ticket}", flush=True)
                 acc_new += 1
             elif res.status_code == 200:
                 resp_json = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}
                 if resp_json.get("status") == "updated":
-                    print(f"    [✔] CẬP NHẬT -> [{username}]: {deal.symbol} {trade_type} | Net: {pnl_str}{fee_info} | Vé #{deal.ticket}", flush=True)
+                    print(f"    [✔] CẬP NHẬT -> [{username}]: {deal.symbol} {trade_type} | Net: {pnl_str}{fee_info}{sl_info} | Vé #{deal.ticket}", flush=True)
                 acc_skipped += 1
             elif res.status_code == 404:
                 err_msg = res.json().get("error", "Tài khoản chưa được liên kết!")

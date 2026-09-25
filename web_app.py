@@ -701,6 +701,22 @@ def mt5_webhook():
         else:
             pnl_percent = round(((entry_price - exit_price) / entry_price) * 100, 2)
 
+    stop_loss = float(payload["stop_loss"]) if payload.get("stop_loss") not in (None, "", 0, 0.0) else None
+    take_profit = float(payload["take_profit"]) if payload.get("take_profit") not in (None, "", 0, 0.0) else None
+
+    # Tính Planned R:R và Realized R:R nếu có Stop Loss
+    planned_rr = 0.0
+    realized_rr = 0.0
+    if stop_loss and stop_loss > 0 and entry_price > 0:
+        risk_dist = abs(entry_price - stop_loss)
+        if risk_dist > 0:
+            if take_profit and take_profit > 0:
+                reward_dist = abs(take_profit - entry_price)
+                planned_rr = round(reward_dist / risk_dist, 2)
+            if exit_price > 0:
+                realized_diff = (exit_price - entry_price) if trade_type == "Long" else (entry_price - exit_price)
+                realized_rr = round(realized_diff / risk_dist, 2)
+
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     close_time = payload.get("close_time") or payload.get("time") or now_str
     
@@ -719,6 +735,10 @@ def mt5_webhook():
                         trade_type = ?,
                         entry_price = ?,
                         exit_price = ?,
+                        stop_loss = ?,
+                        take_profit = ?,
+                        planned_rr = ?,
+                        realized_rr = ?,
                         pnl = ?,
                         fees = ?,
                         pnl_percent = ?,
@@ -731,6 +751,10 @@ def mt5_webhook():
                     trade_type,
                     entry_price,
                     exit_price,
+                    stop_loss,
+                    take_profit,
+                    planned_rr,
+                    realized_rr,
                     net_pnl,
                     fee_val,
                     pnl_percent,
@@ -772,8 +796,10 @@ def mt5_webhook():
         "exit_date": close_time,
         "entry_price": entry_price,
         "exit_price": exit_price,
-        "stop_loss": float(payload["stop_loss"]) if payload.get("stop_loss") else None,
-        "take_profit": float(payload["take_profit"]) if payload.get("take_profit") else None,
+        "stop_loss": stop_loss,
+        "take_profit": take_profit,
+        "planned_rr": planned_rr,
+        "realized_rr": realized_rr,
         "position_size": float(payload.get("volume") or payload.get("lot") or 1.0),
         "risk_amount": 0.0,
         "fees": fee_val,

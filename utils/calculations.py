@@ -142,9 +142,15 @@ def calculate_portfolio_statistics(trades: List[Dict[str, Any]], initial_capital
     avg_win = round(total_profit / win_count, 2) if win_count > 0 else 0.0
     avg_loss = round(total_loss / loss_count, 2) if loss_count > 0 else 0.0
 
-    # R:R trung bình của các lệnh có dữ liệu
-    rr_values = [t.get("realized_rr") for t in closed_trades if t.get("realized_rr") is not None]
-    avg_rr = round(sum(rr_values) / len(rr_values), 2) if rr_values else 0.0
+    # R:R trung bình của các lệnh có dữ liệu SL/TP (Realized R:R)
+    valid_rr = [float(t.get("realized_rr")) for t in closed_trades if t.get("realized_rr") is not None and float(t.get("realized_rr") or 0.0) > 0]
+    if valid_rr:
+        avg_rr = round(sum(valid_rr) / len(valid_rr), 2)
+    elif avg_loss > 0 and avg_win > 0:
+        # Fallback thông minh: Tỷ lệ Lãi TB / Lỗ TB (Payoff Ratio) khi chưa có Stop Loss
+        avg_rr = round(avg_win / avg_loss, 2)
+    else:
+        avg_rr = 0.0
 
     pnl_values = [t.get("pnl") or 0 for t in closed_trades]
     best_trade = max(pnl_values) if pnl_values else 0.0

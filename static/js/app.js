@@ -609,7 +609,11 @@ document.addEventListener("DOMContentLoaded", () => {
             ratioEl.textContent = `Tỷ lệ Lãi:Lỗ: 0.0x`;
         }
 
-        document.getElementById("kpi-avg-rr").textContent = `1 : ${(stats.avg_rr || 0).toFixed(2)}`;
+        let avgRrVal = stats.avg_rr || 0;
+        if (avgRrVal <= 0 && (stats.avg_loss || 0) > 0 && (stats.avg_win || 0) > 0) {
+            avgRrVal = (stats.avg_win / stats.avg_loss);
+        }
+        document.getElementById("kpi-avg-rr").textContent = `1 : ${avgRrVal.toFixed(2)}`;
         document.getElementById("kpi-max-wins").textContent = `${stats.max_consecutive_wins || 0}W`;
         document.getElementById("kpi-max-losses").textContent = `${stats.max_consecutive_losses || 0}L`;
     }
