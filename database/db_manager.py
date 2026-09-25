@@ -708,6 +708,8 @@ class DatabaseManager:
     def delete_mt5_account(self, account_id: int, user_id: int) -> bool:
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Hủy bỏ toàn bộ lệnh thuộc tài khoản MT5 này theo yêu cầu người dùng
+            cursor.execute("DELETE FROM trades WHERE mt5_account_id = ? AND user_id = ?", (account_id, user_id))
             cursor.execute("DELETE FROM mt5_accounts WHERE id = ? AND user_id = ?", (account_id, user_id))
             conn.commit()
             return cursor.rowcount > 0

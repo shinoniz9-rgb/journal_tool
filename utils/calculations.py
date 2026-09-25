@@ -97,6 +97,8 @@ def calculate_portfolio_statistics(trades: List[Dict[str, Any]], initial_capital
             "breakeven_trades": 0,
             "win_rate": 0.0,
             "net_pnl": 0.0,
+            "gross_pnl": 0.0,
+            "total_fees": 0.0,
             "total_profit": 0.0,
             "total_loss": 0.0,
             "profit_factor": 0.0,
@@ -128,6 +130,8 @@ def calculate_portfolio_statistics(trades: List[Dict[str, Any]], initial_capital
     total_profit = sum(t.get("pnl") or 0 for t in win_list)
     total_loss = abs(sum(t.get("pnl") or 0 for t in loss_list))
     net_pnl = round(total_profit - total_loss, 2)
+    total_fees = round(sum(float(t.get("fees") or 0.0) for t in closed_trades), 2)
+    gross_pnl = round(net_pnl + total_fees, 2)
 
     profit_factor = (
         round(total_profit / total_loss, 2)
@@ -245,6 +249,8 @@ def calculate_portfolio_statistics(trades: List[Dict[str, Any]], initial_capital
         "breakeven_trades": be_count,
         "win_rate": win_rate,
         "net_pnl": net_pnl,
+        "gross_pnl": gross_pnl,
+        "total_fees": total_fees,
         "total_profit": round(total_profit, 2),
         "total_loss": round(total_loss, 2),
         "profit_factor": profit_factor,

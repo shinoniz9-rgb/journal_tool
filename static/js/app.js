@@ -554,7 +554,22 @@ document.addEventListener("DOMContentLoaded", () => {
         pnlEl.textContent = `${pnlVal >= 0 ? "+" : ""}$${pnlVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         pnlEl.className = `kpi-value ${pnlVal > 0 ? "text-win" : pnlVal < 0 ? "text-loss" : "text-be"}`;
         
-        document.getElementById("kpi-pnl-sub").textContent = `${stats.closed_trades_count || 0} lệnh đã hoàn tất (${stats.open_trades_count || 0} đang mở)`;
+        const subEl = document.getElementById("kpi-pnl-sub");
+        if (subEl) {
+            const closedCount = stats.closed_trades_count || 0;
+            if (closedCount === 0) {
+                subEl.innerHTML = `<span class="text-muted">0 lệnh đã đóng</span>`;
+            } else {
+                const grossPnl = stats.gross_pnl || 0;
+                const totalFees = stats.total_fees || 0;
+                const grossSign = grossPnl > 0 ? "+" : (grossPnl < 0 ? "-" : "");
+                const grossFormatted = `${grossSign}$${Math.abs(grossPnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                const feesSign = totalFees > 0 ? "-" : (totalFees < 0 ? "+" : "");
+                const feesFormatted = `${feesSign}$${Math.abs(totalFees).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                
+                subEl.innerHTML = `Lãi gộp: <span class="${grossPnl >= 0 ? 'text-win' : 'text-loss'} font-bold">${grossFormatted}</span> | Phí: <span class="${totalFees > 0 ? 'text-loss' : 'text-muted'} font-bold">${feesFormatted}</span>`;
+            }
+        }
 
         const wrEl = document.getElementById("kpi-win-rate");
         const wrVal = stats.win_rate || 0;
@@ -1605,7 +1620,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (btnDel) {
                 btnDel.addEventListener("click", async (e) => {
                     e.stopPropagation();
-                    if (!confirm(`Bạn có chắc muốn xóa tài khoản MT5 "${acc.account_name}"? Các lệnh đã lưu sẽ không bị mất.`)) return;
+                    if (!confirm(`Bạn có chắc muốn xóa tài khoản "${acc.account_name}"? Toàn bộ các lệnh thuộc tài khoản này cũng sẽ bị hủy bỏ vĩnh viễn.`)) return;
                     try {
                         const res = await authFetch(`/api/mt5/accounts/${acc.id}`, { method: "DELETE" });
                         if (res.ok) {
