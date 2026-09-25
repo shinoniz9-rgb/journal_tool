@@ -245,14 +245,56 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // ==========================================
+    // UTILITY HELPERS (SHARED & PERFORMANCE OPTIMIZED)
+    // ==========================================
+    function formatChartUrl(path) {
+        if (!path) return "";
+        if (path.startsWith("/") || path.startsWith("http")) return path;
+        return `/charts/${path.split(/[\\/]/).pop()}`;
+    }
+
+    function openModalElement(modalEl) {
+        if (!modalEl) return;
+        modalEl.classList.add("active");
+        document.body.classList.add("modal-open");
+    }
+
+    function closeModalElement(modalEl) {
+        if (!modalEl) return;
+        modalEl.classList.remove("active");
+        const anyActive = document.querySelector(".modal-backdrop.active, .lightbox-backdrop.active");
+        if (!anyActive) {
+            document.body.classList.remove("modal-open");
+        }
+    }
+
+    function selectTradeSymbol(sym) {
+        if (!sym) return;
+        if (elements.formSymbol) {
+            elements.formSymbol.value = sym;
+            const val = sym.toUpperCase();
+            if (val.includes("XAU") || val.includes("XAG") || val.includes("OIL") || (!val.includes("USDT") && val.includes("/"))) {
+                if (elements.formMarketType) elements.formMarketType.value = "Forex / CFD";
+            } else {
+                if (elements.formMarketType) elements.formMarketType.value = "Futures";
+            }
+            elements.formSymbol.dispatchEvent(new Event("input"));
+        }
+        document.querySelectorAll(".symbol-pick-btn").forEach(b => {
+            if (b.getAttribute("data-symbol") === sym) b.classList.add("active");
+            else b.classList.remove("active");
+        });
+    }
+
     function showAuthModal() {
-        elements.modalAuth.classList.add("active");
-        elements.userProfileChip.style.display = "none";
+        openModalElement(elements.modalAuth);
+        if (elements.userProfileChip) elements.userProfileChip.style.display = "none";
         hideAuthAlert();
     }
 
     function hideAuthModal() {
-        elements.modalAuth.classList.remove("active");
+        closeModalElement(elements.modalAuth);
     }
 
     function showAuthAlert(msg, type = "error") {
@@ -434,24 +476,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if (elements.filterSymbol) {
                 elements.filterSymbol.innerHTML = '<option value="Tất cả">Tất cả Cặp tiền</option>';
             }
-            
-
 
             if (data.symbol_categories) {
                 for (const [category, pairs] of Object.entries(data.symbol_categories)) {
-                    // Filter dropdown optgroup
                     const filterGrp = document.createElement("optgroup");
                     filterGrp.label = category;
 
                     pairs.forEach(pair => {
-                        // Datalist
-                        if (elements.pairsDatalist) {
-                            const opt = document.createElement("option");
-                            opt.value = pair;
-                            elements.pairsDatalist.appendChild(opt);
-                        }
-
-                        // Filter
                         if (elements.filterSymbol) {
                             const fOpt = document.createElement("option");
                             fOpt.value = pair;
@@ -464,30 +495,14 @@ document.addEventListener("DOMContentLoaded", () => {
                         elements.filterSymbol.appendChild(filterGrp);
                     }
                 }
-            } else {
+            } else if (data.pairs) {
                 data.pairs.forEach(pair => {
-                    if (elements.pairsDatalist) {
-                        const opt = document.createElement("option");
-                        opt.value = pair;
-                        elements.pairsDatalist.appendChild(opt);
-                    }
-
                     if (elements.filterSymbol) {
                         const filterOpt = document.createElement("option");
                         filterOpt.value = pair;
                         filterOpt.textContent = pair;
                         elements.filterSymbol.appendChild(filterOpt);
                     }
-                });
-            }
-
-            if (elements.filterStrategy && elements.filterStrategy.tagName === "SELECT") {
-                elements.filterStrategy.innerHTML = '<option value="Tất cả">Tất cả Chiến lược</option>';
-                data.strategies.forEach(s => {
-                    const fOpt = document.createElement("option");
-                    fOpt.value = s;
-                    fOpt.textContent = s;
-                    elements.filterStrategy.appendChild(fOpt);
                 });
             }
 
@@ -840,29 +855,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderTradesTable(trades) {
-        elements.tradesTbody.innerHTML = "";
-        if (elements.tradesCardsContainer) {
-            elements.tradesCardsContainer.innerHTML = "";
-        }
-
         if (!trades || trades.length === 0) {
+            elements.tradesTbody.innerHTML = "";
+            if (elements.tradesCardsContainer) {
+                elements.tradesCardsContainer.innerHTML = "";
+            }
             elements.tradesEmptyState.style.display = "block";
             return;
         }
 
         elements.tradesEmptyState.style.display = "none";
 
-        const tbodyFrag = document.createDocumentFragment();
-        const cardsFrag = document.createDocumentFragment();
+        const rows = [];
+        const cards = [];
 
         trades.forEach((t, index) => {
-            const tr = document.createElement("tr");
-
             const isLong = (t.trade_type || "Long").toLowerCase() === "long";
             const typeBadge = `<span class="badge ${isLong ? 'badge-long' : 'badge-short'}">${isLong ? '↗ LONG' : '↘ SHORT'}</span>`;
 
             const isFutures = (t.market_type || "Futures") === "Futures";
-            const marketInfo = `<span class="badge ${isFutures ? 'badge-open' : 'badge-closed'}">${t.market_type} ${isFutures ? `x${t.leverage || 1}` : ''}</span>`;
             const statusBadge = `<span class="badge ${t.status === 'Open' ? 'badge-open' : 'badge-closed'}">${t.status}</span>`;
 
             const pnl = t.pnl || 0;
@@ -883,10 +894,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let chartHtml = `<span class="no-chart">Không</span>`;
             if (t.chart_image_path) {
-                const chartUrl = t.chart_image_path.startsWith("/") || t.chart_image_path.startsWith("http") 
-                    ? t.chart_image_path 
-                    : `/charts/${t.chart_image_path.split(/[\\/]/).pop()}`;
-                chartHtml = `<img src="${chartUrl}" class="chart-thumb" alt="Chart" data-src="${chartUrl}" title="Nhấn để phóng to">`;
+                const chartUrl = formatChartUrl(t.chart_image_path);
+                chartHtml = `<img src="${chartUrl}" class="chart-thumb" alt="Chart" data-src="${chartUrl}" title="Nhấn để phóng to" loading="lazy" decoding="async">`;
             }
 
             const dateStr = t.entry_date ? t.entry_date.substring(5, 16) : "-";
@@ -900,44 +909,37 @@ document.addEventListener("DOMContentLoaded", () => {
                 feesHtml = `<span class="mono text-win font-bold" style="font-size:12px;" title="Lãi qua đêm (Positive swap)">+$${Math.abs(fees).toFixed(2)}</span>`;
             }
 
-            tr.innerHTML = `
-                <td class="mono text-muted">#${displayId}</td>
-                <td><strong class="font-bold">${t.symbol}</strong> <span class="text-muted" style="font-size:11px;">${t.timeframe || ''}</span></td>
-                <td>${typeBadge}</td>
-                <td>${statusBadge}</td>
-                <td class="mono font-bold">$${(t.entry_price || 0).toLocaleString()}</td>
-                <td class="mono font-bold">${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</td>
-                <td>${feesHtml}</td>
-                <td>${pnlHtml}</td>
-                <td>${roiHtml}</td>
-                <td>${rrHtml}</td>
-                <td>${chartHtml}</td>
-                <td class="text-muted" style="font-size:11px;">${dateStr}</td>
-                <td>
-                    <div class="row-actions">
-                        <button class="action-btn btn-edit" data-id="${t.id}" data-stt="${displayId}" title="Chỉnh sửa">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                        <button class="action-btn btn-delete" data-id="${t.id}" title="Xóa lệnh">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                        </button>
-                    </div>
-                </td>
-            `;
+            // Desktop Table Row
+            rows.push(`
+                <tr data-trade-id="${t.id}" data-stt="${displayId}" style="cursor: pointer;">
+                    <td class="mono text-muted">#${displayId}</td>
+                    <td><strong class="font-bold">${t.symbol}</strong> <span class="text-muted" style="font-size:11px;">${t.timeframe || ''}</span></td>
+                    <td>${typeBadge}</td>
+                    <td>${statusBadge}</td>
+                    <td class="mono font-bold">$${(t.entry_price || 0).toLocaleString()}</td>
+                    <td class="mono font-bold">${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</td>
+                    <td>${feesHtml}</td>
+                    <td>${pnlHtml}</td>
+                    <td>${roiHtml}</td>
+                    <td>${rrHtml}</td>
+                    <td>${chartHtml}</td>
+                    <td class="text-muted" style="font-size:11px;">${dateStr}</td>
+                    <td>
+                        <div class="row-actions">
+                            <button type="button" class="action-btn btn-edit" data-id="${t.id}" data-stt="${displayId}" title="Chỉnh sửa">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button type="button" class="action-btn btn-delete" data-id="${t.id}" title="Xóa lệnh">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `);
 
-            tr.addEventListener("click", (e) => {
-                if (e.target.closest(".action-btn") || e.target.closest(".chart-thumb")) return;
-                openEditModal(t.id, displayId);
-            });
-
-            tbodyFrag.appendChild(tr);
-
-            // Mobile Card Rendering
+            // Mobile Card
             if (elements.tradesCardsContainer) {
-                const card = document.createElement("div");
                 const cardPnlClass = t.status === "Open" ? "card-open" : pnl > 0 ? "card-win" : pnl < 0 ? "card-loss" : "card-be";
-                card.className = `trade-card ${cardPnlClass}`;
-
                 let pnlCardHtml = "-";
                 let roiCardHtml = "-";
                 if (t.status === "Closed") {
@@ -952,106 +954,76 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 let chartCardHtml = "";
                 if (t.chart_image_path) {
-                    const chartUrl = t.chart_image_path.startsWith("/") || t.chart_image_path.startsWith("http") 
-                        ? t.chart_image_path 
-                        : `/charts/${t.chart_image_path.split(/[\\/]/).pop()}`;
+                    const chartUrl = formatChartUrl(t.chart_image_path);
                     chartCardHtml = `
                         <div class="tc-chart-row">
-                            <img src="${chartUrl}" class="tc-chart-thumb chart-thumb" alt="Chart" data-src="${chartUrl}" title="Nhấn để phóng to">
+                            <img src="${chartUrl}" class="tc-chart-thumb chart-thumb" alt="Chart" data-src="${chartUrl}" title="Nhấn để phóng to" loading="lazy" decoding="async">
                         </div>
                     `;
                 }
 
-                card.innerHTML = `
-                    <div class="tc-top-row">
-                        <div class="tc-symbol-group">
-                            <span class="tc-symbol">${t.symbol}</span>
-                            ${t.timeframe ? `<span class="tc-timeframe">${t.timeframe}</span>` : ''}
-                        </div>
-                        <div class="tc-badges-group">
-                            ${typeBadge}
-                            ${statusBadge}
-                        </div>
-                    </div>
-                    <div class="tc-metrics-grid">
-                        <div class="tc-metric-item">
-                            <span class="tc-metric-label">Giá Vào / Ra</span>
-                            <span class="tc-metric-value mono">$${(t.entry_price || 0).toLocaleString()} ➔ ${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</span>
-                        </div>
-                        <div class="tc-metric-item">
-                            <span class="tc-metric-label">Phí & Swap</span>
-                            <span class="tc-metric-value mono">${fees > 0 ? `<span class="text-loss font-bold">-$${fees.toFixed(2)}</span>` : (fees < 0 ? `<span class="text-win font-bold">+$${Math.abs(fees).toFixed(2)}</span>` : '<span class="text-muted">$0.00</span>')}</span>
-                        </div>
-                        <div class="tc-metric-item">
-                            <span class="tc-metric-label">Tỷ Lệ R:R</span>
-                            <span class="tc-metric-value mono">${rrHtml}</span>
-                        </div>
-                        <div class="tc-metric-item">
-                            <span class="tc-metric-label">Rủi Ro (SL)</span>
-                            <span class="tc-metric-value mono">${t.risk_amount > 0 ? `<span class="text-loss font-bold">-$${Number(t.risk_amount).toFixed(2)}</span>` : '<span class="text-muted">-</span>'}</span>
-                        </div>
-                        <div class="tc-pnl-box">
-                            <div>
-                                <div class="tc-metric-label">PnL Ròng</div>
-                                <div class="tc-pnl-number mono">${pnlCardHtml}</div>
+                cards.push(`
+                    <div class="trade-card ${cardPnlClass}" data-trade-id="${t.id}" data-stt="${displayId}" style="cursor: pointer;">
+                        <div class="tc-top-row">
+                            <div class="tc-symbol-group">
+                                <span class="tc-symbol">${t.symbol}</span>
+                                ${t.timeframe ? `<span class="tc-timeframe">${t.timeframe}</span>` : ''}
                             </div>
-                            <div>
-                                ${roiCardHtml}
+                            <div class="tc-badges-group">
+                                ${typeBadge}
+                                ${statusBadge}
                             </div>
                         </div>
-                    </div>
-                    ${chartCardHtml}
-                    <div class="tc-footer">
-                        <span class="tc-date-text">🕒 ${dateStr}</span>
-                        <div class="tc-actions-btns">
-                            <button type="button" class="tc-btn tc-btn-edit btn-edit" data-id="${t.id}" title="Chỉnh sửa">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                <span>Sửa</span>
-                            </button>
-                            <button type="button" class="tc-btn tc-btn-delete btn-delete" data-id="${t.id}" title="Xóa lệnh">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                <span>Xóa</span>
-                            </button>
+                        <div class="tc-metrics-grid">
+                            <div class="tc-metric-item">
+                                <span class="tc-metric-label">Giá Vào / Ra</span>
+                                <span class="tc-metric-value mono">$${(t.entry_price || 0).toLocaleString()} ➔ ${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</span>
+                            </div>
+                            <div class="tc-metric-item">
+                                <span class="tc-metric-label">Phí & Swap</span>
+                                <span class="tc-metric-value mono">${fees > 0 ? `<span class="text-loss font-bold">-$${fees.toFixed(2)}</span>` : (fees < 0 ? `<span class="text-win font-bold">+$${Math.abs(fees).toFixed(2)}</span>` : '<span class="text-muted">$0.00</span>')}</span>
+                            </div>
+                            <div class="tc-metric-item">
+                                <span class="tc-metric-label">Tỷ Lệ R:R</span>
+                                <span class="tc-metric-value mono">${rrHtml}</span>
+                            </div>
+                            <div class="tc-metric-item">
+                                <span class="tc-metric-label">Rủi Ro (SL)</span>
+                                <span class="tc-metric-value mono">${t.risk_amount > 0 ? `<span class="text-loss font-bold">-$${Number(t.risk_amount).toFixed(2)}</span>` : '<span class="text-muted">-</span>'}</span>
+                            </div>
+                            <div class="tc-pnl-box">
+                                <div>
+                                    <div class="tc-metric-label">PnL Ròng</div>
+                                    <div class="tc-pnl-number mono">${pnlCardHtml}</div>
+                                </div>
+                                <div>
+                                    ${roiCardHtml}
+                                </div>
+                            </div>
+                        </div>
+                        ${chartCardHtml}
+                        <div class="tc-footer">
+                            <span class="tc-date-text">🕒 ${dateStr}</span>
+                            <div class="tc-actions-btns">
+                                <button type="button" class="tc-btn tc-btn-edit btn-edit" data-id="${t.id}" data-stt="${displayId}" title="Chỉnh sửa">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    <span>Sửa</span>
+                                </button>
+                                <button type="button" class="tc-btn tc-btn-delete btn-delete" data-id="${t.id}" title="Xóa lệnh">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    <span>Xóa</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                `;
-
-                card.addEventListener("click", (e) => {
-                    if (e.target.closest(".tc-btn") || e.target.closest(".chart-thumb")) return;
-                    openEditModal(t.id, displayId);
-                });
-
-                cardsFrag.appendChild(card);
+                `);
             }
-
         });
 
-        // ĐƯA CÁC HÀNG VÀO BẢNG VÀ CONTAINER THẺ ĐỂ HIỂN THỊ TRÊN MÀN HÌNH
-        elements.tradesTbody.appendChild(tbodyFrag);
+        elements.tradesTbody.innerHTML = rows.join("");
         if (elements.tradesCardsContainer) {
-            elements.tradesCardsContainer.appendChild(cardsFrag);
+            elements.tradesCardsContainer.innerHTML = cards.join("");
         }
-
-        document.querySelectorAll(".chart-thumb").forEach(img => {
-            img.addEventListener("click", (e) => {
-                e.stopPropagation();
-                openLightbox(img.getAttribute("data-src"));
-            });
-        });
-
-        document.querySelectorAll(".btn-edit").forEach(btn => {
-            btn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                openEditModal(btn.getAttribute("data-id"), btn.getAttribute("data-stt"));
-            });
-        });
-
-        document.querySelectorAll(".btn-delete").forEach(btn => {
-            btn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                handleDeleteTrade(btn.getAttribute("data-id"));
-            });
-        });
     }
 
     // ==========================================
@@ -1116,14 +1088,10 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.calMonthWr.textContent = `${wr}%`;
         elements.calMonthTradesCount.textContent = `${monthTradesCount} lệnh`;
 
-        elements.calendarDaysGrid.innerHTML = "";
-
+        const cellsHtml = [];
         const prevMonthLastDay = new Date(year, month, 0).getDate();
         for (let i = startingDay - 1; i >= 0; i--) {
-            const cell = document.createElement("div");
-            cell.className = "cal-day-cell other-month";
-            cell.innerHTML = `<span class="cal-day-number">${prevMonthLastDay - i}</span>`;
-            elements.calendarDaysGrid.appendChild(cell);
+            cellsHtml.push(`<div class="cal-day-cell other-month"><span class="cal-day-number">${prevMonthLastDay - i}</span></div>`);
         }
 
         for (let d = 1; d <= totalDays; d++) {
@@ -1132,12 +1100,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const dayKey = `${year}-${mStr}-${dStr}`;
             const info = dailyData[dayKey];
 
-            const cell = document.createElement("div");
-            cell.className = "cal-day-cell";
-
             if (info) {
                 const isWin = info.pnl >= 0;
-                cell.classList.add(isWin ? "day-win" : "day-loss");
+                const winClass = isWin ? "day-win" : "day-loss";
+                const pnlClass = isWin ? "text-win" : "text-loss";
                 
                 const absPnl = Math.abs(info.pnl);
                 let pnlStr = "";
@@ -1150,26 +1116,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 const formattedPnl = (isWin ? "+" : "") + "$" + pnlStr;
 
-                cell.innerHTML = `
-                    <div class="cal-cell-top">
-                        <span class="cal-day-number font-bold">${d}</span>
-                        <span class="cal-day-trades hide-mobile">${info.wins}W-${info.losses}L</span>
+                cellsHtml.push(`
+                    <div class="cal-day-cell ${winClass}">
+                        <div class="cal-cell-top">
+                            <span class="cal-day-number font-bold">${d}</span>
+                            <span class="cal-day-trades hide-mobile">${info.wins}W-${info.losses}L</span>
+                        </div>
+                        <div class="cal-day-pnl ${pnlClass}">
+                            ${formattedPnl}
+                        </div>
+                        <div class="cal-day-trades hide-mobile">${info.count} lệnh</div>
                     </div>
-                    <div class="cal-day-pnl ${isWin ? 'text-win' : 'text-loss'}">
-                        ${formattedPnl}
-                    </div>
-                    <div class="cal-day-trades hide-mobile">${info.count} lệnh</div>
-                `;
+                `);
             } else {
-                cell.innerHTML = `
-                    <div class="cal-cell-top">
-                        <span class="cal-day-number">${d}</span>
+                cellsHtml.push(`
+                    <div class="cal-day-cell">
+                        <div class="cal-cell-top">
+                            <span class="cal-day-number">${d}</span>
+                        </div>
                     </div>
-                `;
+                `);
             }
-
-            elements.calendarDaysGrid.appendChild(cell);
         }
+
+        elements.calendarDaysGrid.innerHTML = cellsHtml.join("");
     }
 
     // ==========================================
@@ -1211,12 +1181,76 @@ document.addEventListener("DOMContentLoaded", () => {
 
         resetDropzone();
         updateFormLiveCalculations();
+        openModalElement(elements.modalTradeForm);
+    }
 
-        document.body.classList.add("modal-open");
-        elements.modalTradeForm.classList.add("active");
+    function populateTradeForm(trade, displayId = null) {
+        elements.formTradeId.value = trade.id;
+        const titleStt = displayId ? `#${displayId} ` : '';
+        elements.tradeModalTitle.textContent = `Chỉnh Sửa Lệnh ${titleStt}(${trade.symbol})`;
+        elements.btnSaveText.textContent = "Cập Nhật Lệnh";
+
+        elements.formSymbol.value = trade.symbol || "BTC/USDT";
+        document.querySelectorAll(".symbol-pick-btn").forEach(b => {
+            if (b.getAttribute("data-symbol") === (trade.symbol || "BTC/USDT")) b.classList.add("active");
+            else b.classList.remove("active");
+        });
+        if ((trade.trade_type || "Long") === "Long") {
+            elements.typeLong.checked = true;
+        } else {
+            elements.typeShort.checked = true;
+        }
+
+        elements.formMarketType.value = trade.market_type || "Futures";
+        elements.formLeverage.value = trade.leverage || 10;
+        elements.formStatus.value = trade.status || "Closed";
+        elements.formTimeframe.value = trade.timeframe || "H1";
+
+        if (trade.entry_date) {
+            elements.formEntryDate.value = trade.entry_date.replace(" ", "T").substring(0, 16);
+        }
+        if (trade.exit_date) {
+            elements.formExitDate.value = trade.exit_date.replace(" ", "T").substring(0, 16);
+        }
+
+        elements.formEntryPrice.value = trade.entry_price || "";
+        elements.formStopLoss.value = trade.stop_loss || "";
+        elements.formTakeProfit.value = trade.take_profit || "";
+        elements.formExitPrice.value = trade.exit_price || "";
+        elements.formPositionSize.value = trade.position_size || "";
+        elements.formFees.value = trade.fees || 0;
+        if (elements.formAccountId) {
+            elements.formAccountId.value = trade.mt5_account_id ? String(trade.mt5_account_id) : "";
+        }
+
+        if (elements.formRiskAmount) {
+            elements.formRiskAmount.value = (trade.risk_amount && trade.risk_amount > 0) ? trade.risk_amount : "";
+        }
+
+        elements.formStrategy.value = trade.strategy || "";
+        elements.formEmotion.value = trade.emotion || "";
+        elements.formNotes.value = trade.notes || "";
+        elements.formLessons.value = trade.lessons || "";
+
+        if (trade.chart_image_path) {
+            const chartUrl = formatChartUrl(trade.chart_image_path);
+            setDropzonePreview(chartUrl, trade.chart_image_path);
+        } else {
+            resetDropzone();
+        }
+
+        updateFormLiveCalculations();
+        openModalElement(elements.modalTradeForm);
     }
 
     async function openEditModal(tradeId, displayId = null) {
+        // Ưu tiên tìm ngay trong state.trades đã có -> Phản hồi tức thì 0ms!
+        let trade = state.trades.find(t => String(t.id) === String(tradeId));
+        if (trade) {
+            populateTradeForm(trade, displayId);
+            return;
+        }
+
         try {
             const res = await authFetch(`/api/trades/${tradeId}`);
             if (res.status === 401) {
@@ -1224,76 +1258,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             if (!res.ok) throw new Error("Không tìm thấy lệnh");
-            const trade = await res.json();
-
-            elements.formTradeId.value = trade.id;
-            const titleStt = displayId ? `#${displayId} ` : '';
-            elements.tradeModalTitle.textContent = `Chỉnh Sửa Lệnh ${titleStt}(${trade.symbol})`;
-            elements.btnSaveText.textContent = "Cập Nhật Lệnh";
-
-            elements.formSymbol.value = trade.symbol || "BTC/USDT";
-            document.querySelectorAll(".symbol-pick-btn").forEach(b => {
-                if (b.getAttribute("data-symbol") === (trade.symbol || "BTC/USDT")) b.classList.add("active");
-                else b.classList.remove("active");
-            });
-            if ((trade.trade_type || "Long") === "Long") {
-                elements.typeLong.checked = true;
-            } else {
-                elements.typeShort.checked = true;
-            }
-
-            elements.formMarketType.value = trade.market_type || "Futures";
-            elements.formLeverage.value = trade.leverage || 10;
-            elements.formStatus.value = trade.status || "Closed";
-            elements.formTimeframe.value = trade.timeframe || "H1";
-
-            if (trade.entry_date) {
-                elements.formEntryDate.value = trade.entry_date.replace(" ", "T").substring(0, 16);
-            }
-            if (trade.exit_date) {
-                elements.formExitDate.value = trade.exit_date.replace(" ", "T").substring(0, 16);
-            }
-
-            elements.formEntryPrice.value = trade.entry_price || "";
-            elements.formStopLoss.value = trade.stop_loss || "";
-            elements.formTakeProfit.value = trade.take_profit || "";
-            elements.formExitPrice.value = trade.exit_price || "";
-            elements.formPositionSize.value = trade.position_size || "";
-            elements.formFees.value = trade.fees || 0;
-            if (elements.formAccountId) {
-                elements.formAccountId.value = trade.mt5_account_id ? String(trade.mt5_account_id) : "";
-            }
-
-            if (elements.formRiskAmount) {
-                elements.formRiskAmount.value = (trade.risk_amount && trade.risk_amount > 0) ? trade.risk_amount : "";
-            }
-
-            elements.formStrategy.value = trade.strategy || "";
-            elements.formEmotion.value = trade.emotion || "";
-            elements.formNotes.value = trade.notes || "";
-            elements.formLessons.value = trade.lessons || "";
-
-            if (trade.chart_image_path) {
-                const chartUrl = trade.chart_image_path.startsWith("/") || trade.chart_image_path.startsWith("http")
-                    ? trade.chart_image_path
-                    : `/charts/${trade.chart_image_path.split(/[\\/]/).pop()}`;
-                setDropzonePreview(chartUrl, trade.chart_image_path);
-            } else {
-                resetDropzone();
-            }
-
-            updateFormLiveCalculations();
-            document.body.classList.add("modal-open");
-            elements.modalTradeForm.classList.add("active");
-
+            trade = await res.json();
+            populateTradeForm(trade, displayId);
         } catch (err) {
             showToast(err.message, "error");
         }
     }
 
     function closeTradeModal() {
-        document.body.classList.remove("modal-open");
-        elements.modalTradeForm.classList.remove("active");
+        closeModalElement(elements.modalTradeForm);
     }
 
     async function handleSaveTrade(e) {
@@ -1546,12 +1519,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function openLightbox(src) {
+        if (!src) return;
         elements.lightboxImg.src = src;
-        elements.modalLightbox.classList.add("active");
+        openModalElement(elements.modalLightbox);
     }
 
     function closeLightbox() {
-        elements.modalLightbox.classList.remove("active");
+        closeModalElement(elements.modalLightbox);
         elements.lightboxImg.src = "";
     }
 
@@ -1865,42 +1839,81 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.btnCloseTradeModal.addEventListener("click", closeTradeModal);
         elements.btnCancelTrade.addEventListener("click", closeTradeModal);
 
-        // Symbol Pick Buttons (BTC vs XAU)
+        // Symbol Pick Buttons & Quick Chips
         document.querySelectorAll(".symbol-pick-btn").forEach(btn => {
             btn.addEventListener("click", () => {
-                document.querySelectorAll(".symbol-pick-btn").forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                const sym = btn.getAttribute("data-symbol");
-                if (elements.formSymbol) elements.formSymbol.value = sym;
-                if (sym.includes("XAU")) {
-                    if (elements.formMarketType) elements.formMarketType.value = "Forex / CFD";
-                } else {
-                    if (elements.formMarketType) elements.formMarketType.value = "Futures";
-                }
-                if (elements.formSymbol) elements.formSymbol.dispatchEvent(new Event("input"));
+                selectTradeSymbol(btn.getAttribute("data-symbol"));
             });
         });
-
-
 
         document.querySelectorAll(".quick-symbol-chip").forEach(chip => {
             chip.addEventListener("click", () => {
                 const sym = chip.getAttribute("data-symbol");
                 if (sym) {
-                    elements.formSymbol.value = sym;
-                    const val = sym.toUpperCase();
-                    if (val.includes("XAU") || val.includes("XAG") || val.includes("OIL") || (!val.includes("USDT") && val.includes("/"))) {
-                        if (elements.formMarketType) elements.formMarketType.value = "Forex / CFD";
-                    } else {
-                        if (elements.formMarketType) elements.formMarketType.value = "Futures";
+                    selectTradeSymbol(sym);
+                    if (elements.formSymbol) {
+                        elements.formSymbol.style.boxShadow = "0 0 10px rgba(0, 245, 155, 0.5)";
+                        setTimeout(() => { elements.formSymbol.style.boxShadow = ""; }, 300);
                     }
-                    elements.formSymbol.dispatchEvent(new Event("input"));
-                    elements.formSymbol.style.boxShadow = "0 0 10px rgba(0, 245, 155, 0.5)";
-                    setTimeout(() => { elements.formSymbol.style.boxShadow = ""; }, 300);
                 }
             });
         });
 
+        // Event Delegation cho Bảng lệnh (Desktop) - 1 Listener duy nhất, siêu mượt
+        if (elements.tradesTbody) {
+            elements.tradesTbody.addEventListener("click", (e) => {
+                const deleteBtn = e.target.closest(".btn-delete");
+                if (deleteBtn) {
+                    e.stopPropagation();
+                    handleDeleteTrade(deleteBtn.getAttribute("data-id"));
+                    return;
+                }
+                const editBtn = e.target.closest(".btn-edit");
+                if (editBtn) {
+                    e.stopPropagation();
+                    openEditModal(editBtn.getAttribute("data-id"), editBtn.getAttribute("data-stt"));
+                    return;
+                }
+                const thumb = e.target.closest(".chart-thumb");
+                if (thumb) {
+                    e.stopPropagation();
+                    openLightbox(thumb.getAttribute("data-src"));
+                    return;
+                }
+                const row = e.target.closest("tr");
+                if (row && row.getAttribute("data-trade-id")) {
+                    openEditModal(row.getAttribute("data-trade-id"), row.getAttribute("data-stt"));
+                }
+            });
+        }
+
+        // Event Delegation cho Thẻ lệnh (Mobile) - 1 Listener duy nhất
+        if (elements.tradesCardsContainer) {
+            elements.tradesCardsContainer.addEventListener("click", (e) => {
+                const deleteBtn = e.target.closest(".btn-delete, .tc-btn-delete");
+                if (deleteBtn) {
+                    e.stopPropagation();
+                    handleDeleteTrade(deleteBtn.getAttribute("data-id"));
+                    return;
+                }
+                const editBtn = e.target.closest(".btn-edit, .tc-btn-edit");
+                if (editBtn) {
+                    e.stopPropagation();
+                    openEditModal(editBtn.getAttribute("data-id"), editBtn.getAttribute("data-stt"));
+                    return;
+                }
+                const thumb = e.target.closest(".chart-thumb");
+                if (thumb) {
+                    e.stopPropagation();
+                    openLightbox(thumb.getAttribute("data-src"));
+                    return;
+                }
+                const card = e.target.closest(".trade-card");
+                if (card && card.getAttribute("data-trade-id")) {
+                    openEditModal(card.getAttribute("data-trade-id"), card.getAttribute("data-stt"));
+                }
+            });
+        }
 
         // Mobile Navigation & View Switcher Wiring
         const mobileNavItems = document.querySelectorAll(".mobile-nav-item");
@@ -1909,6 +1922,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const fileChartInput = document.getElementById("file-chart-input");
 
         function switchAppTab(targetTab) {
+            if (state.currentTab === targetTab) return;
             state.currentTab = targetTab;
 
             elements.tabBtns.forEach(b => {
@@ -1921,16 +1935,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 else b.classList.remove("active");
             });
 
-            elements.tabViews.forEach(v => v.classList.remove("active"));
-            const targetView = document.getElementById(`view-${targetTab}`);
-            if (targetView) targetView.classList.add("active");
+            elements.tabViews.forEach(v => {
+                if (v.id === `view-${targetTab}`) {
+                    v.classList.add("active");
+                } else {
+                    v.classList.remove("active");
+                }
+            });
 
             if (targetTab === "calendar") {
                 renderCalendar();
             } else if (targetTab === "dashboard" && state.chartInstance) {
-                state.chartInstance.resize();
+                requestAnimationFrame(() => {
+                    if (state.chartInstance) state.chartInstance.resize();
+                });
             }
-            window.scrollTo({ top: 0, behavior: "smooth" });
+            if (window.scrollY > 40) {
+                window.scrollTo(0, 0);
+            }
         }
 
         // Connect desktop tabs to switchAppTab
@@ -2046,7 +2068,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 debounceTimer = setTimeout(loadTrades, 300);
             });
         }
-        [elements.filterSymbol, elements.filterStatus, elements.filterResult, elements.filterStrategy].filter(Boolean).forEach(select => {
+        [elements.filterSymbol, elements.filterStatus, elements.filterResult].filter(Boolean).forEach(select => {
             select.addEventListener("change", loadTrades);
         });
         if (elements.btnResetFilters) {
@@ -2055,13 +2077,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (elements.filterSymbol) elements.filterSymbol.value = "Tất cả";
                 if (elements.filterStatus) elements.filterStatus.value = "Tất cả";
                 if (elements.filterResult) elements.filterResult.value = "Tất cả";
-                if (elements.filterStrategy) elements.filterStrategy.value = "Tất cả";
                 loadTrades();
             });
         }
 
         elements.btnExportCsv.addEventListener("click", () => {
-            window.location.href = "/api/export-csv";
+            let url = "/api/export-csv";
+            if (state.currentMt5AccountId && state.currentMt5AccountId !== "all") {
+                url += `?mt5_account_id=${encodeURIComponent(state.currentMt5AccountId)}`;
+            }
+            window.location.href = url;
             showToast("Đang tải file CSV về máy...", "success");
         });
 
@@ -2099,6 +2124,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     closeLightbox();
                 } else if (elements.modalTradeForm.classList.contains("active")) {
                     closeTradeModal();
+                } else if (modalMt5 && modalMt5.classList.contains("active")) {
+                    closeMt5Modal();
                 }
             }
         });
@@ -2132,12 +2159,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const alertEl = document.getElementById("mt5-form-alert");
                 if (alertEl) alertEl.style.display = "none";
                 loadMt5Accounts();
-                modalMt5.classList.add("active");
+                openModalElement(modalMt5);
             });
         }
 
         function closeMt5Modal() {
-            if (modalMt5) modalMt5.classList.remove("active");
+            if (modalMt5) closeModalElement(modalMt5);
             const alertEl = document.getElementById("mt5-form-alert");
             if (alertEl) alertEl.style.display = "none";
         }

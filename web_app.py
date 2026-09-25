@@ -939,15 +939,24 @@ def mt5_webhook():
 @login_required
 def export_csv():
     user_id = get_current_user_id()
-    trades = db.get_all_trades(user_id=user_id, order_desc=True)
+    account_id = request.args.get("mt5_account_id")
+    account_filter = None
+    if account_id and account_id != "all":
+        try:
+            account_filter = int(account_id)
+        except ValueError:
+            account_filter = None
+
+    trades = db.get_all_trades(user_id=user_id, order_desc=True, mt5_account_id=account_filter)
     temp_csv_path = os.path.join(DATA_DIR, f"temp_export_{user_id}.csv")
     
     if export_trades_to_csv(trades, temp_csv_path):
+        suffix = f"_acc_{account_filter}" if account_filter else ""
         return send_file(
             temp_csv_path,
             mimetype="text/csv",
             as_attachment=True,
-            download_name=f"trading_journal_{datetime.now().strftime('%Y%m%d')}.csv"
+            download_name=f"trading_journal_{datetime.now().strftime('%Y%m%d')}{suffix}.csv"
         )
     return jsonify({"error": "Không thể xuất file CSV"}), 500
 
