@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260926_v41">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260926_v42">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -162,14 +162,14 @@
                         </div>
                     </div>
 
-                    <!-- KPI 5: PROFIT FACTOR -->
-                    <div class="kpi-card">
+                    <!-- KPI 5: TỔNG PHÍ GIAO DỊCH & QUA ĐÊM (SWAP / FUNDING) -->
+                    <div class="kpi-card" id="kpi-fees-card" title="Tổng phí hoa hồng (commission), phí funding rate và phí qua đêm (swap) của toàn bộ các lệnh">
                         <div class="kpi-header">
-                            <span class="kpi-label">Profit Factor</span>
+                            <span class="kpi-label">Phí Giao Dịch & Qua Đêm</span>
                         </div>
-                        <div class="kpi-value" id="kpi-profit-factor">0.00</div>
-                        <div class="kpi-subtext">
-                            Lãi: <span class="text-win" id="kpi-total-profit">$0</span> | Lỗ: <span class="text-loss" id="kpi-total-loss">$0</span>
+                        <div class="kpi-value text-loss font-bold" id="kpi-total-fees">-$0.00</div>
+                        <div class="kpi-subtext" id="kpi-fees-sub">
+                            Hoa hồng sàn, phí funding & swap
                         </div>
                     </div>
 
@@ -801,6 +801,6 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-    <script src="/static/js/app.js?v=20260926_v41" defer></script>
+    <script src="/static/js/app.js?v=20260926_v42" defer></script>
 </body>
 </html>

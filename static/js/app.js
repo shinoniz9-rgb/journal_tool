@@ -599,22 +599,54 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("kpi-losses").textContent = `${stats.loss_trades || 0}L`;
         document.getElementById("kpi-be").textContent = `${stats.breakeven_trades || 0}BE`;
 
-        const pfEl = document.getElementById("kpi-profit-factor");
-        if ((stats.total_loss || 0) === 0) {
-            if ((stats.total_profit || 0) > 0) {
-                pfEl.textContent = "MAX";
-                pfEl.className = "kpi-value text-win";
+        const feesEl = document.getElementById("kpi-total-fees");
+        if (feesEl) {
+            const totalFees = Number(stats.total_fees || 0);
+            if (totalFees > 0) {
+                feesEl.textContent = `-$${totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                feesEl.className = "kpi-value text-loss font-bold";
+            } else if (totalFees < 0) {
+                feesEl.textContent = `+$${Math.abs(totalFees).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                feesEl.className = "kpi-value text-win font-bold";
             } else {
-                pfEl.textContent = "0.00";
-                pfEl.className = "kpi-value text-be";
+                feesEl.textContent = "$0.00";
+                feesEl.className = "kpi-value text-muted font-bold";
             }
-        } else {
-            const pfVal = stats.profit_factor || 0;
-            pfEl.textContent = pfVal.toFixed(2);
-            pfEl.className = `kpi-value ${pfVal >= 1.5 ? "text-win" : pfVal >= 1.0 ? "text-accent" : "text-loss"}`;
         }
-        document.getElementById("kpi-total-profit").textContent = `+$${(stats.total_profit || 0).toLocaleString()}`;
-        document.getElementById("kpi-total-loss").textContent = `-$${(stats.total_loss || 0).toLocaleString()}`;
+        const feesCard = document.getElementById("kpi-fees-card");
+        const feesSubEl = document.getElementById("kpi-fees-sub");
+        if (feesSubEl) {
+            const totalFees = Number(stats.total_fees || 0);
+            if (totalFees === 0 && (!stats.closed_trades_count || stats.closed_trades_count === 0)) {
+                feesSubEl.textContent = "Chưa phát sinh phí giao dịch";
+                if (feesCard) feesCard.title = "Chưa có lệnh đóng phát sinh chi phí hoặc hoa hồng";
+            } else if (state.currentMt5AccountId === "all") {
+                feesSubEl.textContent = "Hoa hồng sàn, phí funding & swap";
+                if (feesCard) feesCard.title = "Tổng hợp toàn bộ phí hoa hồng, phí funding rate và phí swap qua đêm của tất cả tài khoản";
+            } else {
+                const curAcc = (state.mt5Accounts || []).find(a => String(a.id) === String(state.currentMt5AccountId));
+                if (curAcc) {
+                    const sName = (curAcc.server || "").toLowerCase();
+                    const aName = (curAcc.account_name || "").toLowerCase();
+                    const isCrypto = sName.includes("binance") || sName.includes("okx") || sName.includes("bybit") || sName.includes("bitget") || sName.includes("bingx") || sName.includes("crypto") || aName.includes("binance") || aName.includes("okx") || aName.includes("bybit") || aName.includes("bitget") || aName.includes("bingx");
+                    const isManual = (curAcc.account_type === "manual") || sName === "manual" || aName.includes("thủ công") || aName.includes("thu cong") || aName.includes("ghi tay") || aName.includes("manual") || (curAcc.is_linked === false && !sName);
+                    
+                    if (isManual) {
+                        feesSubEl.textContent = "Phí giao dịch bạn tự ghi nhận";
+                        if (feesCard) feesCard.title = "Tổng chi phí và hoa hồng giao dịch bạn tự điền khi ghi chép lệnh";
+                    } else if (isCrypto) {
+                        feesSubEl.textContent = "Phí giao dịch & phí funding sàn";
+                        if (feesCard) feesCard.title = "Tổng phí giao dịch và phí funding rate giữ vị thế Futures/Spot từ sàn giao dịch";
+                    } else {
+                        feesSubEl.textContent = "Hoa hồng sàn & phí swap qua đêm";
+                        if (feesCard) feesCard.title = "Tổng phí hoa hồng (commission) và phí swap qua đêm từ tài khoản MT5 / Quỹ";
+                    }
+                } else {
+                    feesSubEl.textContent = "Hoa hồng sàn, phí funding & swap";
+                    if (feesCard) feesCard.title = "Tổng hợp chi phí giao dịch, hoa hồng và phí qua đêm";
+                }
+            }
+        }
 
         document.getElementById("kpi-avg-win").textContent = `+$${(stats.avg_win || 0).toFixed(2)}`;
         document.getElementById("kpi-avg-loss").textContent = `-$${(stats.avg_loss || 0).toFixed(2)}`;
