@@ -2152,6 +2152,8 @@ html, body {
         display: flex;
         flex-direction: column;
         gap: 2px;
+        min-width: 0;
+        overflow: hidden;
     }
 
     .tc-metric-label {
@@ -2288,9 +2290,11 @@ html, body {
         max-height: 82dvh !important;
         border-radius: 18px !important;
         padding: 0 !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
+        overflow: hidden !important;
+        overflow-x: hidden !important;
         box-shadow: 0 15px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 245, 155, 0.2) !important;
         animation: modalMobileSmoothOpen 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
@@ -2312,7 +2316,14 @@ html, body {
     .modal-body {
         padding: 16px 18px !important;
         overflow-y: auto !important;
+        overflow-x: hidden !important;
         -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior-x: none !important;
+        touch-action: pan-y !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        min-width: 0 !important;
         flex: 1 !important;
     }
 
@@ -2880,6 +2891,9 @@ body.modal-open .mobile-bottom-nav {
         justify-content: center !important;
         padding: 12px !important;
         overflow: hidden !important;
+        overflow-x: hidden !important;
+        touch-action: pan-y !important;
+        overscroll-behavior: contain !important;
     }
 
     .modal-dialog,
@@ -2892,10 +2906,46 @@ body.modal-open .mobile-bottom-nav {
         min-height: 82dvh !important;
         max-height: 82dvh !important;
         border-radius: 18px !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
         display: flex !important;
         flex-direction: column !important;
+        overflow: hidden !important;
+        overflow-x: hidden !important;
+        touch-action: pan-y !important;
         animation: modalMobileSmoothOpen 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    .modal-body,
+    .modal-body-scroll {
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior-x: none !important;
+        touch-action: pan-y !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+    }
+
+    .modal-dialog form,
+    .modal-dialog .form-row,
+    .modal-dialog .form-group {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+    }
+
+    .modal-dialog .form-control,
+    .modal-dialog select.form-control,
+    .modal-dialog input.form-control {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        min-width: 0 !important;
+        text-overflow: ellipsis;
     }
 
     .auth-dialog {
@@ -3176,6 +3226,89 @@ body.modal-open .mobile-bottom-nav {
         z-index: 2500 !important;
     }
 }
+
+/* Khóa cố định Modal Quỹ & Sàn, chống xô lệch và trượt ngang qua lại trên Mobile */
+#modal-mt5-accounts {
+    overflow-x: hidden !important;
+}
+
+#modal-mt5-accounts .modal-dialog {
+    max-width: 480px !important;
+    width: min(calc(100vw - 24px), 480px) !important;
+    margin: 0 auto !important;
+    overflow-x: hidden !important;
+}
+
+#modal-mt5-accounts .modal-body,
+#modal-mt5-accounts .modal-body-scroll {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: none !important;
+    touch-action: pan-y !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+#form-add-mt5 {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+#form-add-mt5 .form-row {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+}
+
+#form-add-mt5 .form-group {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+}
+
+#form-add-mt5 .form-control {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    text-overflow: ellipsis;
+}
+
+.mt5-account-cards {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+}
+
+.mt5-card-item {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+.mt5-card-details {
+    min-width: 0 !important;
+    flex: 1 !important;
+    overflow: hidden !important;
+}
+
+.mt5-card-title,
+.mt5-card-meta {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
 
 
 

@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/css/style.css?v=20260925_v40">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260926_v41">
 </head>
 <body>
     <!-- BACKGROUND GLOW EFFECTS -->
@@ -283,6 +283,7 @@
                                 <th>Vị Thế</th>
                                 <th>Trạng Thái</th>
                                 <th>Giá Vào</th>
+                                <th>SL</th>
                                 <th>Giá Thoát</th>
                                 <th>Phí ($)</th>
                                 <th>Net PnL ($)</th>
@@ -436,7 +437,7 @@
     <!-- MODAL: QUẢN LÝ & THÊM TÀI KHOẢN QUỸ / SÀN  -->
     <!-- ========================================== -->
     <div class="modal-backdrop" id="modal-mt5-accounts">
-        <div class="modal-dialog modal-center-dialog" style="max-width: 500px;">
+        <div class="modal-dialog modal-center-dialog">
             <div class="modal-header">
                 <div class="modal-title-group">
                     <span class="modal-icon">📈</span>
@@ -445,7 +446,7 @@
                 <button type="button" class="modal-close-btn" id="btn-close-mt5-modal">&times;</button>
             </div>
 
-            <div class="modal-body" style="padding: 20px;">
+            <div class="modal-body modal-body-scroll" style="padding: 18px 20px;">
                 <!-- Danh sách tài khoản hiện tại -->
                 <div class="mt5-current-list-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -470,7 +471,7 @@
                         <div class="form-group">
                             <label for="mt5-account-type" class="form-label required">Chế Độ Tài Khoản</label>
                             <select id="mt5-account-type" class="form-control" style="font-weight: 600; font-size: 13px;">
-                                <option value="linked">🔗 Đồng Bộ Tự Động Từ Sàn (MT5, FTMO, Binance... - Khóa vốn bảo toàn)</option>
+                                <option value="linked">🔗 Tự Động Từ Sàn (MT5, FTMO, Binance...)</option>
                                 <option value="manual">✍️ Ghi Chép Thủ Công (Tự do chỉnh sửa vốn)</option>
                             </select>
                         </div>
@@ -479,7 +480,7 @@
                     <!-- HÀNG 1: TÊN GỢI NHỚ -->
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="mt5-account-name" class="form-label required">Tên Gợi Nhớ (Ví dụ: The5ers, FTMO, Binance Futures, OKX...)</label>
+                            <label for="mt5-account-name" class="form-label required">Tên Gợi Nhớ (The5ers, FTMO, Binance...)</label>
                             <input type="text" id="mt5-account-name" class="form-control" placeholder="vd: The5ers, FTMO, Binance hoặc OKX" required>
                         </div>
                     </div>
@@ -488,7 +489,7 @@
                     <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="mt5-server" class="form-label">Tên Sàn / Server / Quỹ</label>
-                            <input type="text" id="mt5-server" class="form-control" placeholder="vd: Binance, OKX, FivePercentOnline, Exness...">
+                            <input type="text" id="mt5-server" class="form-control" placeholder="vd: Binance, FTMO, Exness...">
                         </div>
                         <div class="form-group">
                             <label for="mt5-login" class="form-label">Số ID / Login / Mã Nhãn</label>
@@ -500,7 +501,7 @@
                     <div class="form-row form-grid-2">
                         <div class="form-group">
                             <label for="mt5-password" class="form-label">Mật Khẩu Investor</label>
-                            <input type="password" id="mt5-password" class="form-control" placeholder="Chỉ cần nếu đồng bộ MT5, bỏ qua nếu tạo sàn thông thường">
+                            <input type="password" id="mt5-password" class="form-control" placeholder="Mật khẩu Investor (nếu đồng bộ MT5)">
                         </div>
                         <div class="form-group">
                             <label for="mt5-balance" class="form-label required">Số Vốn Ban Đầu ($)</label>
@@ -800,6 +801,6 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-    <script src="/static/js/app.js?v=20260925_v40" defer></script>
+    <script src="/static/js/app.js?v=20260926_v41" defer></script>
 </body>
 </html>

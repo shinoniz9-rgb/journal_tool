@@ -258,6 +258,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!modalEl) return;
         modalEl.classList.add("active");
         document.body.classList.add("modal-open");
+        const bodyEl = modalEl.querySelector(".modal-body, .modal-body-scroll");
+        if (bodyEl) {
+            bodyEl.scrollLeft = 0;
+            bodyEl.scrollTop = 0;
+        }
     }
 
     function closeModalElement(modalEl) {
@@ -909,6 +914,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 feesHtml = `<span class="mono text-win font-bold" style="font-size:12px;" title="Lãi qua đêm (Positive swap)">+$${Math.abs(fees).toFixed(2)}</span>`;
             }
 
+            // SL Display
+            const slPrice = (t.stop_loss !== null && t.stop_loss !== undefined && t.stop_loss !== "" && Number(t.stop_loss) > 0)
+                ? Number(t.stop_loss)
+                : null;
+            const slHtml = slPrice
+                ? `<span class="mono font-bold text-loss">$${slPrice.toLocaleString()}</span>`
+                : `<span class="text-muted">-</span>`;
+
             // Desktop Table Row
             rows.push(`
                 <tr data-trade-id="${t.id}" data-stt="${displayId}" style="cursor: pointer;">
@@ -917,6 +930,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td>${typeBadge}</td>
                     <td>${statusBadge}</td>
                     <td class="mono font-bold">$${(t.entry_price || 0).toLocaleString()}</td>
+                    <td>${slHtml}</td>
                     <td class="mono font-bold">${t.exit_price ? '$' + Number(t.exit_price).toLocaleString() : '-'}</td>
                     <td>${feesHtml}</td>
                     <td>${pnlHtml}</td>
@@ -988,8 +1002,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                 <span class="tc-metric-value mono">${rrHtml}</span>
                             </div>
                             <div class="tc-metric-item">
-                                <span class="tc-metric-label">Rủi Ro (SL)</span>
-                                <span class="tc-metric-value mono">${t.risk_amount > 0 ? `<span class="text-loss font-bold">-$${Number(t.risk_amount).toFixed(2)}</span>` : '<span class="text-muted">-</span>'}</span>
+                                <span class="tc-metric-label">Dừng Lỗ (SL)</span>
+                                <span class="tc-metric-value mono">${slPrice ? `<span class="text-loss font-bold">$${slPrice.toLocaleString()}</span>${t.risk_amount && Number(t.risk_amount) > 0 ? ` <span class="text-muted" style="font-size:11px;">(-$${Number(t.risk_amount).toFixed(2)})</span>` : ''}` : (t.risk_amount && Number(t.risk_amount) > 0 ? `<span class="text-loss font-bold">-$${Number(t.risk_amount).toFixed(2)}</span>` : '<span class="text-muted">-</span>')}</span>
                             </div>
                             <div class="tc-pnl-box">
                                 <div>
