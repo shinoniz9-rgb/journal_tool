@@ -20,19 +20,37 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+is_frozen = getattr(sys, "frozen", False)
+
 try:
     import requests
 except ImportError:
-    print("[*] Đang cài đặt thư viện 'requests'...", flush=True)
-    os.system("pip install requests -q")
-    import requests
+    if not is_frozen:
+        print("[*] Đang cài đặt thư viện 'requests'...", flush=True)
+        os.system("pip install requests -q")
+        import requests
+    else:
+        raise
+
+try:
+    import numpy
+except ImportError:
+    if not is_frozen:
+        print("[*] Đang cài đặt thư viện 'numpy'...", flush=True)
+        os.system("pip install numpy -q")
+        import numpy
+    else:
+        raise
 
 try:
     import MetaTrader5 as mt5
 except ImportError:
-    print("[*] Đang cài đặt thư viện 'MetaTrader5'...", flush=True)
-    os.system("pip install MetaTrader5 -q")
-    import MetaTrader5 as mt5
+    if not is_frozen:
+        print("[*] Đang cài đặt thư viện 'MetaTrader5'...", flush=True)
+        os.system("pip install MetaTrader5 -q")
+        import MetaTrader5 as mt5
+    else:
+        raise
 
 BASE_SERVER_URL = "https://crypto-journal-twhs.onrender.com"
 CHECK_ACCOUNT_URL = f"{BASE_SERVER_URL}/api/mt5/check_account"
