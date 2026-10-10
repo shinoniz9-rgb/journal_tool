@@ -9,7 +9,7 @@ import base64
 import uuid
 from functools import wraps
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, session, make_response
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 if BASE_DIR not in sys.path:
@@ -104,9 +104,24 @@ def index():
 
 @app.route("/apple-touch-icon.png")
 @app.route("/apple-touch-icon-180x180.png")
+@app.route("/apple-touch-icon-120x120.png")
+@app.route("/apple-touch-icon-152x152.png")
+@app.route("/apple-touch-icon-167x167.png")
 @app.route("/apple-touch-icon-precomposed.png")
 def apple_touch_icon():
-    return send_from_directory(os.path.join(app.static_folder, "icons"), "apple-touch-icon.png")
+    resp = make_response(send_from_directory(os.path.join(app.static_folder, "icons"), "apple-touch-icon.png"))
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
+@app.after_request
+def disable_icon_caching(response):
+    if request.path.startswith("/static/icons/") or "apple-touch-icon" in request.path:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 @app.route("/favicon.ico")
 def favicon():
