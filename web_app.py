@@ -102,6 +102,16 @@ def login_required(f):
 def index():
     return render_template("index.html")
 
+@app.route("/apple-touch-icon.png")
+@app.route("/apple-touch-icon-180x180.png")
+@app.route("/apple-touch-icon-precomposed.png")
+def apple_touch_icon():
+    return send_from_directory(os.path.join(app.static_folder, "icons"), "apple-touch-icon.png")
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(os.path.join(app.static_folder, "icons"), "favicon.ico")
+
 @app.route("/charts/<path:filename>")
 def serve_chart(filename):
     return send_from_directory(CHARTS_DIR, filename)
