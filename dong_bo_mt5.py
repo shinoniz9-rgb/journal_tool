@@ -117,7 +117,7 @@ def sync_account_trades(acc_info, web_info, days_back=90, force_update=False):
 
     if not deals_to_send:
         print(f"[*] Tìm thấy {len(closed_deals)} lệnh trên MT5: Tất cả đã được đối soát và lưu đầy đủ trong sổ nhật ký (Không có lệnh mới cần nạp).", flush=True)
-        return 0, acc_skipped
+        return 0, 0, acc_skipped
 
     if acc_skipped > 0:
         print(f"[*] Tìm thấy {len(closed_deals)} lệnh trên MT5 (Đã có sẵn {acc_skipped} lệnh, phát hiện {len(deals_to_send)} lệnh MỚI cần nạp vào '{username}')...", flush=True)
@@ -134,6 +134,7 @@ def sync_account_trades(acc_info, web_info, days_back=90, force_update=False):
                 order_by_pos.setdefault(p_id, []).append(o)
 
     acc_new = 0
+    acc_updated = 0
     session = requests.Session()
     for deal in deals_to_send:
         pos_id = getattr(deal, "position_id", None)
@@ -209,13 +210,15 @@ def sync_account_trades(acc_info, web_info, days_back=90, force_update=False):
                 resp_json = res.json() if res.headers.get("content-type", "").startswith("application/json") else {}
                 if resp_json.get("status") == "updated":
                     print(f"    [✔] CẬP NHẬT -> [{username}]: {deal.symbol} {trade_type} | Net: {pnl_str}{fee_info}{sl_info} | Vé #{deal.ticket}", flush=True)
-                acc_skipped += 1
+                    acc_updated += 1
+                else:
+                    acc_skipped += 1
                 existing_tickets.add(str(deal.ticket))
             elif res.status_code == 404:
                 err_msg = res.json().get("error", "Tài khoản chưa được liên kết!")
                 print(f"    [!] Lỗi: {err_msg}", flush=True)
                 web_info["synced_tickets"] = list(existing_tickets)
-                return acc_new, acc_skipped
+                return acc_new, acc_updated, acc_skipped
             else:
                 print(f"    [!] Máy chủ phản hồi mã {res.status_code} cho vé #{deal.ticket}", flush=True)
         except Exception as ex:
@@ -223,7 +226,7 @@ def sync_account_trades(acc_info, web_info, days_back=90, force_update=False):
 
     # Cập nhật lại danh sách vé đã đồng bộ vào web_info để ghi nhớ cho các chu kỳ tiếp theo
     web_info["synced_tickets"] = list(existing_tickets)
-    return acc_new, acc_skipped
+    return acc_new, acc_updated, acc_skipped
 
 
 def print_unlinked_warning(acc_info):
@@ -312,19 +315,21 @@ def main():
         print(">> Đã kích hoạt chế độ quét toàn diện (--force)\n", flush=True)
     else:
         choice = input("Lựa chọn của bạn [1, 2 hoặc 3, Enter = 1]: ").strip()
-        if not choice:
+        if choice not in ("1", "2", "3"):
             choice = "1"
 
     if choice in ("1", "3"):
         force_update = (choice == "3")
         # Chế độ 1 lần
-        new_cnt, skip_cnt = sync_account_trades(acc_info, web_check, days_back=90, force_update=force_update)
+        new_cnt, update_cnt, skip_cnt = sync_account_trades(acc_info, web_check, days_back=90, force_update=force_update)
         mt5.shutdown()
         print("\n" + "=" * 65, flush=True)
         print("                    TỔNG KẾT ĐỒNG BỘ MT5", flush=True)
         print("=" * 65, flush=True)
         print(f"  [✔] Đã đồng bộ vào nick Web : {target_user}", flush=True)
         print(f"  [✔] Lệnh mới được nạp vào sổ: {new_cnt} lệnh", flush=True)
+        if update_cnt > 0:
+            print(f"  [✔] Lệnh được cập nhật lại  : {update_cnt} lệnh", flush=True)
         print(f"  [✔] Lệnh đã có sẵn (đối soát): {skip_cnt} lệnh", flush=True)
         print(f"  [✔] Cập nhật số dư Balance  : ${acc_info.balance:,.2f} {currency}", flush=True)
         print("=" * 65, flush=True)
