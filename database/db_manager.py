@@ -3,6 +3,7 @@ Database Manager supporting both Cloud PostgreSQL (Neon) and Local SQLite
 Bảo toàn dữ liệu vĩnh viễn, chống mất dữ liệu khi deploy lại hệ thống.
 """
 import os
+import re
 import sqlite3
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -342,6 +343,11 @@ class DatabaseManager:
                         cursor.execute("ALTER TABLE trades ADD COLUMN mt5_account_id INTEGER DEFAULT NULL;")
                     except Exception:
                         pass
+                if "mt5_ticket" not in trade_columns:
+                    try:
+                        cursor.execute("ALTER TABLE trades ADD COLUMN mt5_ticket TEXT DEFAULT NULL;")
+                    except Exception:
+                        pass
 
             conn.commit()
 
@@ -485,16 +491,22 @@ class DatabaseManager:
                 except Exception:
                     mt5_acc_id = None
 
+            mt5_ticket = str(data.get("mt5_ticket") or "").strip() or None
+            if not mt5_ticket and data.get("notes"):
+                m = re.search(r'#(\d+)', str(data["notes"]))
+                if m:
+                    mt5_ticket = m.group(1).strip()
+
             cursor.execute("""
             INSERT INTO trades (
-                user_id, mt5_account_id, symbol, trade_type, market_type, status, timeframe,
+                user_id, mt5_account_id, mt5_ticket, symbol, trade_type, market_type, status, timeframe,
                 entry_date, exit_date, entry_price, exit_price,
                 stop_loss, take_profit, leverage, position_size, risk_amount, fees,
                 pnl, pnl_percent, planned_rr, realized_rr,
                 strategy, emotion, notes, lessons, chart_image_path,
                 created_at, updated_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?,
@@ -504,6 +516,7 @@ class DatabaseManager:
             """, (
                 user_id,
                 mt5_acc_id,
+                mt5_ticket,
                 data.get("symbol", "").upper(),
                 data.get("trade_type", "Long"),
                 data.get("market_type", "Futures"),
@@ -618,6 +631,31 @@ class DatabaseManager:
                 cursor.execute(f"SELECT * FROM trades WHERE user_id = ? ORDER BY id {order}", (user_id,))
             rows = cursor.fetchall()
             return [dict(r) for r in rows]
+
+    def get_synced_mt5_tickets(self, user_id: int) -> List[str]:
+        """
+        Lấy danh sách tất cả các mã vé (ticket) MT5 đã được ghi vào nhật ký của user.
+        Kiểm tra cả cột mt5_ticket và trích xuất từ cột notes (MT5 #<ticket>).
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT mt5_ticket, notes FROM trades WHERE user_id = ?",
+                (user_id,)
+            )
+            rows = cursor.fetchall()
+            tickets = set()
+            for r in rows:
+                r_dict = dict(r) if hasattr(r, "keys") else {"mt5_ticket": r[0], "notes": r[1]}
+                tk = r_dict.get("mt5_ticket")
+                if tk:
+                    tickets.add(str(tk).strip())
+                notes = r_dict.get("notes") or ""
+                if "#" in notes:
+                    m = re.search(r'#(\d+)', notes)
+                    if m:
+                        tickets.add(m.group(1).strip())
+            return list(tickets)
 
     def filter_trades(
         self,

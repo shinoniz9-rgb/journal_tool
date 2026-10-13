@@ -705,14 +705,37 @@ def mt5_check_account():
     user = db.get_user_by_id(acc["user_id"])
     username = user["username"] if user else f"User_{acc['user_id']}"
     
+    # Lấy danh sách các vé MT5 đã có trong nhật ký của user để client MT5 bỏ qua ngay lập tức
+    synced_tickets = db.get_synced_mt5_tickets(user_id=acc["user_id"])
+
     return jsonify({
         "status": "ok",
         "user_id": acc["user_id"],
         "username": username,
         "account_name": acc.get("account_name") or "Tài khoản MT5",
         "account_id": acc["id"],
-        "balance": acc.get("balance", 0.0)
+        "balance": acc.get("balance", 0.0),
+        "synced_tickets": synced_tickets
     })
+
+@app.route("/api/mt5/synced_tickets", methods=["POST", "GET"])
+def mt5_synced_tickets():
+    """Endpoint trả về danh sách các vé MT5 đã được đồng bộ cho tài khoản."""
+    payload = request.json if request.is_json else (request.form or request.args or {})
+    login = str(payload.get("login") or "").strip()
+    server = str(payload.get("server") or "").strip()
+    user_id = payload.get("user_id")
+
+    if not user_id and login:
+        acc = db.get_mt5_account_by_login(server=server, login=login)
+        if acc:
+            user_id = acc["user_id"]
+
+    if not user_id:
+        return jsonify({"status": "error", "error": "Không xác định được người dùng"}), 400
+
+    tickets = db.get_synced_mt5_tickets(user_id=int(user_id))
+    return jsonify({"status": "ok", "tickets": tickets, "count": len(tickets)})
 
 @app.route("/api/mt5/webhook", methods=["POST"])
 def mt5_webhook():
@@ -835,7 +858,7 @@ def mt5_webhook():
     with db.get_connection() as conn:
         cursor = conn.cursor()
         if ticket:
-            cursor.execute("SELECT id, stop_loss, take_profit, planned_rr, realized_rr FROM trades WHERE user_id = ? AND notes LIKE ? LIMIT 1", (user_id, f"%#{ticket}%"))
+            cursor.execute("SELECT id, stop_loss, take_profit, planned_rr, realized_rr, pnl, exit_price FROM trades WHERE user_id = ? AND (notes LIKE ? OR mt5_ticket = ?) LIMIT 1", (user_id, f"%#{ticket}%", ticket))
             existing = cursor.fetchone()
             if existing:
                 existing_dict = dict(existing) if hasattr(existing, "keys") else {
@@ -843,7 +866,9 @@ def mt5_webhook():
                     "stop_loss": existing[1],
                     "take_profit": existing[2],
                     "planned_rr": existing[3],
-                    "realized_rr": existing[4]
+                    "realized_rr": existing[4],
+                    "pnl": existing[5] if len(existing) > 5 else None,
+                    "exit_price": existing[6] if len(existing) > 6 else None
                 }
                 existing_id = existing_dict["id"]
                 
@@ -852,6 +877,25 @@ def mt5_webhook():
                     stop_loss = float(existing_dict["stop_loss"])
                 if take_profit is None and existing_dict.get("take_profit") is not None:
                     take_profit = float(existing_dict["take_profit"])
+
+                # Kiểm tra xem dữ liệu có bất kỳ sự thay đổi nào hay không
+                is_force = bool(payload.get("force_update"))
+                sl_changed = (stop_loss is not None and stop_loss != existing_dict.get("stop_loss"))
+                tp_changed = (take_profit is not None and take_profit != existing_dict.get("take_profit"))
+                pnl_changed = (existing_dict.get("pnl") is not None and round(float(existing_dict["pnl"]), 2) != round(net_pnl, 2))
+                exit_changed = (existing_dict.get("exit_price") is not None and float(existing_dict["exit_price"]) != exit_price)
+
+                target_user = db.get_user_by_id(user_id)
+                target_username = target_user["username"] if target_user else f"User_{user_id}"
+
+                # Nếu dữ liệu y hệt và không force_update -> Bỏ qua ngay lập tức, không ghi đè DB
+                if not is_force and not sl_changed and not tp_changed and not pnl_changed and not exit_changed:
+                    return jsonify({
+                        "status": "skipped",
+                        "message": f"Lệnh #{ticket} đã tồn tại trong nhật ký (không thay đổi)",
+                        "trade_id": existing_id,
+                        "username": target_username
+                    }), 200
 
                 # Cập nhật lại planned_rr và realized_rr nếu SL/TP được bảo toàn
                 if stop_loss is not None:
@@ -880,6 +924,7 @@ def mt5_webhook():
                         pnl_percent = ?,
                         entry_date = ?,
                         exit_date = ?,
+                        mt5_ticket = COALESCE(mt5_ticket, ?),
                         updated_at = ?
                     WHERE id = ? AND user_id = ?
                 """, (
@@ -896,13 +941,12 @@ def mt5_webhook():
                     pnl_percent,
                     payload.get("open_time") or close_time,
                     close_time,
+                    ticket,
                     now_str,
                     existing_id,
                     user_id
                 ))
                 conn.commit()
-                target_user = db.get_user_by_id(user_id)
-                target_username = target_user["username"] if target_user else f"User_{user_id}"
                 return jsonify({"status": "updated", "message": f"Đã cập nhật lệnh #{ticket}", "trade_id": existing_id, "username": target_username}), 200
                 
         # Kiểm tra thêm theo các thông số khớp lệnh để đảm bảo 100% không bị nhân đôi
@@ -923,6 +967,7 @@ def mt5_webhook():
     trade_data = {
         "user_id": user_id,
         "mt5_account_id": mt5_acc_id,
+        "mt5_ticket": ticket,
         "symbol": symbol,
         "trade_type": trade_type,
         "market_type": "Forex" if "USD" in symbol and "USDT" not in symbol else "Crypto",
