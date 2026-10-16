@@ -37,6 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
         linkBackLogin: document.getElementById("link-back-login"),
         formResetPwd: document.getElementById("form-reset-pwd"),
         resetUsername: document.getElementById("reset-username"),
+        resetSecret: document.getElementById("reset-secret"),
         resetNewPassword: document.getElementById("reset-new-password"),
         btnSubmitResetPwd: document.getElementById("btn-submit-reset-pwd"),
 
@@ -448,7 +449,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function initApp() {
         setupEventListeners();
 
-        // FAST-PATH INITIALIZATION: Tải trước từ bộ nhớ đệm cục bộ để giảm độ trễ tối đa
+        // FAST-PATH: Khôi phục UI từ cache ngay lập tức để không bị giật lag
+        // KHÔNG gọi API ở đây — để checkAuthStatus xử lý việc tải dữ liệu (tránh gọi kép)
         const cachedUserStr = localStorage.getItem("cj_user");
         const token = localStorage.getItem("cj_auth_token");
         if (cachedUserStr && token) {
@@ -460,10 +462,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (elements.userAvatarText) elements.userAvatarText.textContent = firstLetter;
                     if (elements.userDisplayName) elements.userDisplayName.textContent = cachedUser.display_name || cachedUser.username;
                     if (elements.userProfileChip) elements.userProfileChip.style.display = "flex";
-
-                    // Khởi chạy dữ liệu song song ngay lập tức mà không phải chờ auth/me phản hồi
-                    loadMt5Accounts();
-                    refreshAllData();
+                    // Không gọi loadMt5Accounts() / refreshAllData() ở đây để tránh tải kép.
+                    // checkAuthStatus() sẽ gọi chúng sau khi xác thực xong (wasLoaded guard).
                 }
             } catch (e) {}
         }
@@ -1835,10 +1835,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 e.preventDefault();
                 hideAuthAlert();
                 const username = elements.resetUsername.value.trim();
+                const secret = elements.resetSecret ? elements.resetSecret.value.trim() : "";
                 const newPassword = elements.resetNewPassword.value;
 
-                if (!username || newPassword.length < 4) {
-                    showAuthAlert("Vui lòng nhập tên đăng nhập và mật khẩu mới tối thiểu 4 ký tự!");
+                if (!username || !secret || newPassword.length < 4) {
+                    showAuthAlert("Vui lòng nhập tên đăng nhập, mật khẩu cũ/mã khôi phục và mật khẩu mới tối thiểu 4 ký tự!");
                     return;
                 }
 
@@ -1849,7 +1850,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const res = await authFetch("/api/auth/reset-password", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ username, new_password: newPassword })
+                        body: JSON.stringify({ username, secret, new_password: newPassword })
                     });
                     const data = await res.json();
 

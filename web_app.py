@@ -190,7 +190,8 @@ def auth_reset_password():
     data = request.json or {}
     username = data.get("username", "")
     new_password = data.get("new_password", "")
-    result = db.reset_user_password(username=username, new_password=new_password)
+    secret = data.get("secret", "") or data.get("old_password", "") or data.get("recovery_key", "")
+    result = db.reset_user_password(username=username, new_password=new_password, secret=secret)
     if result["success"]:
         user = result["user"]
         session.permanent = True
@@ -531,9 +532,9 @@ def delete_trade(trade_id):
 @app.route("/api/upload-chart", methods=["POST"])
 @login_required
 def upload_chart():
+    ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
     try:
-        filename = f"chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}.png"
-        filepath = os.path.join(CHARTS_DIR, filename)
+        timestamp_prefix = f"chart_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
         if request.is_json:
             data = request.json or {}
@@ -545,6 +546,8 @@ def upload_chart():
                 base64_data = base64_data.split(",")[1]
 
             image_bytes = base64.b64decode(base64_data)
+            filename = f"{timestamp_prefix}.png"
+            filepath = os.path.join(CHARTS_DIR, filename)
             with open(filepath, "wb") as f:
                 f.write(image_bytes)
 
@@ -552,6 +555,14 @@ def upload_chart():
             uploaded_file = request.files["file"]
             if uploaded_file.filename == "":
                 return jsonify({"error": "Chưa chọn file"}), 400
+
+            # Kiểm tra đuôi file để tránh upload file độc hại
+            ext = os.path.splitext(uploaded_file.filename or "")[1].lower()
+            if ext not in ALLOWED_EXTENSIONS:
+                return jsonify({"error": f"Chỉ chấp nhận file ảnh ({', '.join(ALLOWED_EXTENSIONS)})"}), 400
+
+            filename = f"{timestamp_prefix}{ext}"
+            filepath = os.path.join(CHARTS_DIR, filename)
             uploaded_file.save(filepath)
         else:
             return jsonify({"error": "Dữ liệu ảnh không hợp lệ"}), 400
@@ -776,8 +787,11 @@ def mt5_webhook():
                 "status": "error",
                 "error": f"Tài khoản MT5 #{login} ({server}) chưa được liên kết với bất kỳ người dùng nào trên Web. Vui lòng đăng nhập Web -> 'Quản Lý Tài Khoản' để thêm trước."
             }), 404
-        user_id = 1
-        mt5_acc_id = None
+        # Không có login và không tìm thấy tài khoản — từ chối, không fallback về user mặc định
+        return jsonify({
+            "status": "error",
+            "error": "Không xác định được tài khoản mục tiêu. Vui lòng gửi kèm login hoặc server trong payload."
+        }), 404
     else:
         user_id = acc["user_id"]
         mt5_acc_id = acc["id"]
@@ -827,17 +841,11 @@ def mt5_webhook():
 
     if fee_val == 0.0 and (commission != 0.0 or swap != 0.0):
         fee_val = round(abs(commission) + (abs(swap) if swap < 0 else 0.0), 2)
-    
-    # Tính ROI %
-    pnl_percent = 0.0
-    if entry_price > 0:
-        if trade_type == "Long":
-            pnl_percent = round(((exit_price - entry_price) / entry_price) * 100, 2)
-        else:
-            pnl_percent = round(((entry_price - exit_price) / entry_price) * 100, 2)
 
     stop_loss = float(payload["stop_loss"]) if payload.get("stop_loss") not in (None, "", 0, 0.0) else None
     take_profit = float(payload["take_profit"]) if payload.get("take_profit") not in (None, "", 0, 0.0) else None
+    pos_size = float(payload.get("position_size") or payload.get("volume") or payload.get("lot") or 1.0)
+    risk_amount = float(payload.get("risk_amount") or 0.0)
 
     # Tính Planned R:R và Realized R:R bằng hàm chuẩn calculate_trade_metrics
     trade_metrics = calculate_trade_metrics(
@@ -845,10 +853,21 @@ def mt5_webhook():
         entry_price=entry_price,
         exit_price=exit_price,
         stop_loss=stop_loss,
-        take_profit=take_profit
+        take_profit=take_profit,
+        position_size=pos_size,
+        fees=fee_val,
+        risk_amount=risk_amount
     )
     planned_rr = trade_metrics["planned_rr"]
     realized_rr = trade_metrics["realized_rr"]
+
+    # Tính ROI % nhất quán qua calculate_trade_metrics (giống lệnh thủ công)
+    pnl_percent = trade_metrics["pnl_percent"] if trade_metrics["pnl_percent"] else 0.0
+    if pnl_percent == 0.0 and entry_price > 0 and exit_price > 0:
+        if trade_type == "Long":
+            pnl_percent = round(((exit_price - entry_price) / entry_price) * 100, 2)
+        else:
+            pnl_percent = round(((entry_price - exit_price) / entry_price) * 100, 2)
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     close_time = payload.get("close_time") or payload.get("time") or now_str
@@ -1044,5 +1063,6 @@ def add_header(response):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
+    debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"
     print(f"🚀 Web Crypto Trading Journal Multi-User đang chạy tại: http://localhost:{port}")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

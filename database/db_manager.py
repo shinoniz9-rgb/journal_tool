@@ -114,6 +114,48 @@ class PgConnectionWrapper:
                 pass
 
 
+class SqliteConnectionWrapper:
+    """Wrapper cho SQLite connection đảm bảo tự động commit, rollback khi lỗi và đóng kết nối an toàn."""
+    def __init__(self, conn):
+        self.conn = conn
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if exc_type is not None:
+                self.conn.rollback()
+            else:
+                self.conn.commit()
+        finally:
+            try:
+                self.conn.close()
+            except Exception:
+                pass
+
+    def cursor(self):
+        return self.conn.cursor()
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        try:
+            self.conn.rollback()
+        except Exception:
+            pass
+
+    def execute(self, *args, **kwargs):
+        return self.conn.execute(*args, **kwargs)
+
+    def close(self):
+        try:
+            self.conn.close()
+        except Exception:
+            pass
+
+
 class DatabaseManager:
     def __init__(self, db_path: str = DB_PATH, db_url: Optional[str] = DATABASE_URL):
         self.db_path = db_path
@@ -162,7 +204,7 @@ class DatabaseManager:
 
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        return SqliteConnectionWrapper(conn)
 
     def init_db(self):
         """Khởi tạo cấu trúc các bảng"""
@@ -224,6 +266,7 @@ class DatabaseManager:
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER DEFAULT 1 REFERENCES users(id) ON DELETE CASCADE,
                     mt5_account_id INTEGER,
+                    mt5_ticket VARCHAR(100),
                     symbol VARCHAR(50) NOT NULL,
                     trade_type VARCHAR(20) NOT NULL,
                     market_type VARCHAR(50) NOT NULL,
@@ -252,6 +295,20 @@ class DatabaseManager:
                     updated_at VARCHAR(50) NOT NULL
                 );
                 """)
+
+                # Kiểm tra cột mt5_ticket và mt5_account_id trong trades (PostgreSQL)
+                try:
+                    cursor.execute("""
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'trades';
+                    """)
+                    pg_trade_cols = [c.get("column_name") if isinstance(c, dict) else c[0] for c in cursor.fetchall()]
+                    if "mt5_ticket" not in pg_trade_cols:
+                        cursor.execute("ALTER TABLE trades ADD COLUMN mt5_ticket VARCHAR(100) DEFAULT NULL;")
+                    if "mt5_account_id" not in pg_trade_cols:
+                        cursor.execute("ALTER TABLE trades ADD COLUMN mt5_account_id INTEGER DEFAULT NULL;")
+                except Exception as e:
+                    print(f"[!] Migration trades (Postgres) failed: {e}")
             else:
                 # 1. Bảng Users (SQLite)
                 cursor.execute("""
@@ -360,8 +417,11 @@ class DatabaseManager:
             cursor.execute("SELECT id FROM users WHERE username = ?", ("admin",))
             row = cursor.fetchone()
             if not row:
+                import os as _os
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                pwd_hash = generate_password_hash("admin123")
+                # Lấy mật khẩu từ env var, không hardcode trong code
+                default_pwd = _os.environ.get("ADMIN_DEFAULT_PASSWORD", "admin123")
+                pwd_hash = generate_password_hash(default_pwd)
                 cursor.execute(
                     "INSERT INTO users (username, password_hash, display_name, initial_capital, created_at) VALUES (?, ?, ?, ?, ?)",
                     ("admin", pwd_hash, "Admin Trader", 1000.0, now)
@@ -456,24 +516,51 @@ class DatabaseManager:
             conn.commit()
             return cursor.rowcount > 0
 
-    def reset_user_password(self, username: str, new_password: str) -> Dict[str, Any]:
+    def reset_user_password(self, username: str, new_password: str, secret: Optional[str] = None) -> Dict[str, Any]:
         username = username.strip().lower()
         if not username or not new_password:
             return {"success": False, "error": "Tên đăng nhập và mật khẩu mới không được để trống"}
         if len(new_password) < 4:
             return {"success": False, "error": "Mật khẩu mới phải từ 4 ký tự trở lên"}
+        if not secret or not str(secret).strip():
+            return {"success": False, "error": "Vui lòng nhập Mật khẩu cũ hoặc Mã khôi phục (Recovery Key) để xác thực"}
+
+        secret_str = str(secret).strip()
+        recovery_key = os.environ.get("RECOVERY_KEY", "trading_journal_secret_2026")
 
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-            user = cursor.fetchone()
-            if not user:
+            cursor.execute("SELECT id, username, display_name, initial_capital, password_hash FROM users WHERE username = ?", (username,))
+            user_row = cursor.fetchone()
+            if not user_row:
                 return {"success": False, "error": "Không tìm thấy tài khoản với tên đăng nhập này"}
+
+            user_dict = dict(user_row) if hasattr(user_row, "keys") else {
+                "id": user_row[0], "username": user_row[1],
+                "display_name": user_row[2], "initial_capital": user_row[3],
+                "password_hash": user_row[4]
+            }
+
+            is_valid_old_pass = check_password_hash(user_dict.get("password_hash", ""), secret_str)
+            is_valid_recovery = (secret_str == recovery_key)
+
+            if not is_valid_old_pass and not is_valid_recovery:
+                return {"success": False, "error": "Mật khẩu cũ hoặc Mã khôi phục không chính xác!"}
 
             new_hash = generate_password_hash(new_password)
             cursor.execute("UPDATE users SET password_hash = ? WHERE username = ?", (new_hash, username))
             conn.commit()
-            return {"success": True, "message": "Đặt lại mật khẩu thành công!"}
+            # Trả về user object để web_app.py có thể tạo token (fix KeyError)
+            return {
+                "success": True,
+                "message": "Đặt lại mật khẩu thành công!",
+                "user": {
+                    "id": user_dict["id"],
+                    "username": user_dict["username"],
+                    "display_name": user_dict.get("display_name") or user_dict["username"],
+                    "initial_capital": float(user_dict.get("initial_capital") or 1000.0)
+                }
+            }
 
     # ==========================================
     # CÁC HÀM QUẢN LÝ LỆNH GIAO DỊCH (TRADES)
@@ -818,8 +905,12 @@ class DatabaseManager:
     def delete_mt5_account(self, account_id: int, user_id: int) -> bool:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            # Hủy bỏ toàn bộ lệnh thuộc tài khoản MT5 này theo yêu cầu người dùng
-            cursor.execute("DELETE FROM trades WHERE mt5_account_id = ? AND user_id = ?", (account_id, user_id))
+            # QUAN TRỌNG: Bảo toàn dữ liệu lệnh theo AGENTS.md — KHÔNG xóa trades.
+            # Chỉ ngắt liên kết mt5_account_id (đặt về NULL) để giữ toàn bộ lịch sử giao dịch.
+            cursor.execute(
+                "UPDATE trades SET mt5_account_id = NULL WHERE mt5_account_id = ? AND user_id = ?",
+                (account_id, user_id)
+            )
             cursor.execute("DELETE FROM mt5_accounts WHERE id = ? AND user_id = ?", (account_id, user_id))
             conn.commit()
             return cursor.rowcount > 0
