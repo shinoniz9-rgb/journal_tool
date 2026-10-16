@@ -219,7 +219,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     localStorage.setItem("cj_auth_token", data.token);
                 }
                 localStorage.setItem("cj_user", JSON.stringify(data.user));
-                const wasLoaded = !!state.user;
                 state.user = data.user;
                 hideAuthModal();
 
@@ -228,10 +227,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (elements.userDisplayName) elements.userDisplayName.textContent = data.user.display_name || data.user.username;
                 if (elements.userProfileChip) elements.userProfileChip.style.display = "flex";
 
-                if (!wasLoaded) {
-                    loadMt5Accounts();
-                    refreshAllData();
-                }
+                // Tự động nạp tài khoản và dữ liệu lệnh ngay khi xác thực thành công
+                loadMt5Accounts();
+                refreshAllData();
             } else {
                 localStorage.removeItem("cj_auth_token");
                 localStorage.removeItem("cj_user");
@@ -469,6 +467,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         await Promise.all([loadConfig(), checkAuthStatus()]);
+
+        // TỰ ĐỘNG LÀM MỚI DỮ LIỆU ĐỊNH KỲ (Auto-refresh mỗi 10 giây khi người dùng đang mở tab)
+        setInterval(() => {
+            if (state.user && document.visibilityState === "visible") {
+                refreshAllData();
+            }
+        }, 10000);
+
+        // Tự động làm mới dữ liệu ngay khi người dùng quay lại tab trình duyệt này
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && state.user) {
+                refreshAllData();
+            }
+        });
     }
 
     async function loadConfig() {
