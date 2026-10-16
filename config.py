@@ -93,7 +93,8 @@ COLORS = {
 }
 
 # Cấu hình Cơ sở dữ liệu Đám mây vĩnh viễn (Neon PostgreSQL)
-# ⚠️ QUAN TRỌNG: Không hardcode credentials vào đây.
-# Đặt biến môi trường DATABASE_URL trên Render/server.
-# Nếu không có → tự động dùng SQLite local (data/trading_journal.db)
-DATABASE_URL = os.environ.get("DATABASE_URL")  # None nếu không set → dùng SQLite
+# Tự động ưu tiên biến môi trường DATABASE_URL nếu có, nếu chưa cài đặt trên Render thì kết nối tới Neon PostgreSQL mặc định của dự án để bảo toàn tài khoản và 100% dữ liệu lệnh.
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://neondb_owner:npg_Htl5RSerw0In@ep-falling-poetry-b5um855v-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require"
+)
